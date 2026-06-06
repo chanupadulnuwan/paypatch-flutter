@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "title": "Welcome to PayPatch!",
+    "content": "Track group expenses, split bills with friends, and settle up easily. You are currently viewing cached announcements.",
+    "date": "2026-06-06",
+    "author": "PayPatch Admin",
+    "priority": "high"
+  },
+  {
+    "id": 2,
+    "title": "Offline Mode Fallback Enabled",
+    "content": "It looks like you are offline. Adding new expenses or creating groups will be available once your network connection is restored. In the meantime, you can inspect cached logs.",
+    "date": "2026-06-05",
+    "author": "System Notification",
+    "priority": "medium"
+  },
+  {
+    "id": 3,
+    "title": "Smart Bill Splitting Tips",
+    "content": "Tip: Click on any group in your list to view the detailed breakdown of who owes what, see recent receipts, and settle balances in a single tap.",
+    "date": "2026-06-01",
+    "author": "PayPatch Support",
+    "priority": "low"
+  }
+]

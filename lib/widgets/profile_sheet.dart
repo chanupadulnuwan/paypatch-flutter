@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class ProfileSheet extends StatelessWidget {
   final VoidCallback onLogout;
@@ -8,6 +10,11 @@ class ProfileSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final auth = Provider.of<AuthProvider>(context);
+    final user = auth.user;
+
+    final displayName = user?['name'] ?? 'User';
+    final displayEmail = user?['email'] ?? 'No email';
 
     return SafeArea(
       child: Padding(
@@ -25,19 +32,22 @@ class ProfileSheet extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            const CircleAvatar(
+            CircleAvatar(
               radius: 34,
-              child: Icon(Icons.person, size: 34),
+              backgroundColor: cs.primary.withOpacity(0.1),
+              child: Icon(Icons.person, size: 34, color: cs.primary),
             ),
             const SizedBox(height: 10),
 
-            Text('Chanupa Dulnuwan',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+            Text(
+              displayName,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
             const SizedBox(height: 4),
-            Text('chanupa@example.com', style: TextStyle(color: cs.onSurface.withOpacity(0.7))),
-            const SizedBox(height: 2),
-            Text('+94 77 123 4567', style: TextStyle(color: cs.onSurface.withOpacity(0.7))),
-
+            Text(
+              displayEmail,
+              style: TextStyle(color: cs.onSurface.withOpacity(0.7)),
+            ),
             const SizedBox(height: 16),
 
             SizedBox(
@@ -59,7 +69,10 @@ class ProfileSheet extends StatelessWidget {
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
-                onPressed: onLogout,
+                onPressed: () async {
+                  await auth.logout();
+                  onLogout();
+                },
                 icon: const Icon(Icons.logout),
                 label: const Text('Log out'),
               ),

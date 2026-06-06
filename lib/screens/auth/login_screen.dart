@@ -1,21 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import 'register_screen.dart';
 import '../home/home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final success = await auth.login(email, password);
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text(e.toString().replaceAll('Exception: ', '').trim()),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final auth = Provider.of<AuthProvider>(context);
 
     final panelColor = theme.brightness == Brightness.dark
         ? cs.primary.withOpacity(0.35)
         : cs.primary.withOpacity(0.92);
 
     return Scaffold(
-      // makes any extra unused space green (fixes top/bottom white space later i ll add doddle for there)
       backgroundColor: panelColor,
       body: SafeArea(
         child: LayoutBuilder(
@@ -64,6 +115,7 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(height: 18),
 
                         TextField(
+                          controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             prefixIcon: Icon(
@@ -82,11 +134,19 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(height: 14),
 
                         TextField(
-                          obscureText: true,
+                          controller: _passwordCtrl,
+                          obscureText: _obscurePassword,
                           decoration: InputDecoration(
                             prefixIcon: Icon(
                               Icons.lock_outline,
                               color: cs.onSurface.withOpacity(0.7),
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                color: cs.onSurface.withOpacity(0.7),
+                              ),
+                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                             ),
                             hintText: 'Password',
                             filled: true,
@@ -107,16 +167,19 @@ class LoginScreen extends StatelessWidget {
                               backgroundColor: cs.secondary,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                                  borderRadius: BorderRadius.circular(16)),
                             ),
-                            onPressed: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(builder: (_) => const HomeScreen()),
-                              );
-                            },
-                            child: const Text('Login'),
+                            onPressed: auth.isLoading ? null : _handleLogin,
+                            child: auth.isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text('Login'),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -151,7 +214,6 @@ class LoginScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -160,7 +222,6 @@ class LoginScreen extends StatelessWidget {
               );
             }
 
-            // DESKTOP: Left panel + Right image, no overlap, no rounded
             if (isDesktop) {
               return Row(
                 children: [
@@ -175,7 +236,7 @@ class LoginScreen extends StatelessWidget {
                   ),
                   Expanded(
                     child: Container(
-                      color: panelColor, // if image doesn't fill, still green
+                      color: panelColor,
                       child: buildTopImage(fit: BoxFit.cover),
                     ),
                   ),
@@ -183,7 +244,6 @@ class LoginScreen extends StatelessWidget {
               );
             }
 
-            // MOBILE: keep overlap + rounded
             const headerH = 260.0;
             const overlap = 60.0;
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
+import '../home/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -35,10 +38,12 @@ class _SplashScreenState extends State<SplashScreen>
       _mottoCtrl.forward();
     });
 
-    // go to login after ~4 seconds (visible)
+    // go to login or home after ~4 seconds (visible)
     Future.delayed(const Duration(milliseconds: 4000), () {
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(_slowFadeRoute(const LoginScreen()));
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final target = auth.isAuthenticated ? const HomeScreen() : const LoginScreen();
+      Navigator.of(context).pushReplacement(_slowFadeRoute(target));
     });
   }
 
@@ -46,8 +51,8 @@ class _SplashScreenState extends State<SplashScreen>
     return PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 900),
       reverseTransitionDuration: const Duration(milliseconds: 900),
-      pageBuilder: (_, __, ___) => page,
-      transitionsBuilder: (_, animation, __, child) {
+      pageBuilder: (_, _, _) => page,
+      transitionsBuilder: (_, animation, _, child) {
         final curved = CurvedAnimation(parent: animation, curve: Curves.easeInOut);
         return FadeTransition(opacity: curved, child: child);
       },
@@ -85,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
 
           return AnimatedBuilder(
             animation: anim,
-            builder: (_, __) {
+            builder: (_, _) {
               final scale = 0.2 + (0.8 * anim.value); // pop effect
               final opacity = anim.value.clamp(0.0, 1.0);
 
