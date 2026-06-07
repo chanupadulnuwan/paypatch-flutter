@@ -529,32 +529,41 @@ class _GroupHeader extends StatelessWidget {
     final cs = theme.colorScheme;
     final topPadding = MediaQuery.of(context).padding.top;
 
-    return Container(
+    return SizedBox(
       height: 270,
-      decoration: BoxDecoration(
-        gradient: coverImageUrl == null ? _headerGradient(coverPreset) : null,
-        image: coverImageUrl != null
-            ? DecorationImage(
-                image: NetworkImage(coverImageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.30),
-              Colors.black.withValues(alpha: 0.16),
-            ],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background: gradient always present as base
+          Container(
+            decoration: BoxDecoration(gradient: _headerGradient(coverPreset)),
           ),
-        ),
-        padding: EdgeInsets.fromLTRB(18, topPadding + 12, 18, 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          // Cover image on top — silently falls back to gradient if URL is broken
+          if (coverImageUrl != null)
+            Image.network(
+              coverImageUrl!,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+            ),
+          // Dark overlay
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.30),
+                  Colors.black.withValues(alpha: 0.16),
+                ],
+              ),
+            ),
+          ),
+          // Content
+          Padding(
+            padding: EdgeInsets.fromLTRB(18, topPadding + 12, 18, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Row(
               children: [
                 _HeaderActionIcon(
@@ -630,7 +639,9 @@ class _GroupHeader extends StatelessWidget {
               ],
             ),
           ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2136,10 +2147,14 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
   }
 
   Future<void> _settleSelected() async {
-    if (_selectedIds.isEmpty) return;
+    final balances = _balances;
+    final allSettled = balances.isEmpty || balances.values.every((v) => v.abs() < 0.01);
+    if (allSettled || _selectedIds.isEmpty) {
+      await showCustomAlert(context, 'You\'re all settled up! No outstanding balances.', isSuccess: true);
+      return;
+    }
     setState(() => _isBusy = true);
     final provider = Provider.of<GroupsProvider>(context, listen: false);
-    final balances = _balances;
     bool anyFail = false;
     for (final id in _selectedIds) {
       final bal = balances[id] ?? 0;
@@ -2154,20 +2169,22 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
     }
     if (!mounted) return;
     setState(() => _isBusy = false);
-    Navigator.pop(context);
-    if (anyFail) {
-      await showCustomAlert(context, provider.errorMessage ?? 'Some settlements failed.');
-    } else {
-      await showCustomAlert(context, 'Settled up successfully!', isSuccess: true);
-    }
+    // Show alert first while context is still valid, then close sheet
+    await showCustomAlert(
+      context,
+      anyFail ? (provider.errorMessage ?? 'Some settlements failed.') : 'Settled up successfully!',
+      isSuccess: !anyFail,
+    );
+    if (mounted) Navigator.pop(context);
   }
 
   Future<void> _remindSelected() async {
-    if (_selectedIds.isEmpty) return;
+    if (_selectedIds.isEmpty) {
+      await showCustomAlert(context, 'Select at least one person to remind.');
+      return;
+    }
     final balances = _balances;
-    final toRemind = _selectedIds
-        .where((id) => (balances[id] ?? 0) > 0.01)
-        .toList();
+    final toRemind = _selectedIds.where((id) => (balances[id] ?? 0) > 0.01).toList();
     if (toRemind.isEmpty) {
       await showCustomAlert(context, 'No one in your selection owes you money.');
       return;
@@ -2177,12 +2194,13 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
     final success = await provider.sendReminders(widget.groupId, toRemind);
     if (!mounted) return;
     setState(() => _isBusy = false);
-    Navigator.pop(context);
+    // Show alert first while context is still valid, then close sheet
     await showCustomAlert(
       context,
-      success ? 'Reminders sent to ${toRemind.length} member(s).' : 'Failed to send reminders.',
+      success ? 'Reminder sent to ${toRemind.length} member(s).' : 'Failed to send reminders.',
       isSuccess: success,
     );
+    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -2286,6 +2304,7 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
                 ),
               ),
             const SizedBox(height: 16),
+            if (!(balances.isEmpty || balances.values.every((v) => v.abs() < 0.01)))
             Row(
               children: [
                 Expanded(
