@@ -69,21 +69,27 @@ class AuthProvider extends ChangeNotifier {
     String email,
     String password, {
     String country = 'Sri Lanka',
+    String? username,
+    String? phone,
   }) async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      final body = <String, dynamic>{
+        'name': name,
+        'email': email,
+        'password': password,
+        'country': country,
+      };
+      if (username != null && username.isNotEmpty) body['username'] = username;
+      if (phone != null && phone.isNotEmpty) body['phone'] = phone;
+
       final response = await _client
           .post(
             Uri.parse('$_baseUrl/register'),
             headers: _jsonHeaders,
-            body: json.encode({
-              'name': name,
-              'email': email,
-              'password': password,
-              'country': country,
-            }),
+            body: json.encode(body),
           )
           .timeout(const Duration(seconds: 10));
 
@@ -98,6 +104,8 @@ class AuthProvider extends ChangeNotifier {
           email: email,
           password: password,
           country: country,
+          username: username,
+          phone: phone,
         );
 
         try {
@@ -128,6 +136,70 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<bool> updateProfile({
+    String? name,
+    String? username,
+    String? phone,
+    String? profileImagePath,
+  }) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final uri = Uri.parse('$_baseUrl/profile/update');
+      final request = http.MultipartRequest('POST', uri)
+        ..headers.addAll({
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+        });
+      if (name != null) request.fields['name'] = name;
+      if (username != null) request.fields['username'] = username;
+      if (phone != null) request.fields['phone'] = phone;
+      if (profileImagePath != null && profileImagePath.isNotEmpty) {
+        request.files.add(await http.MultipartFile.fromPath('profile_photo', profileImagePath));
+      }
+      final streamed = await _client.send(request).timeout(const Duration(seconds: 15));
+      final response = await http.Response.fromStream(streamed);
+      if (_isSuccess(response.statusCode)) {
+        final decoded = json.decode(response.body);
+        if (decoded['user'] is Map<String, dynamic>) {
+          _user = decoded['user'] as Map<String, dynamic>;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_user', json.encode(_user));
+        }
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> refreshProfile() async {
+    if (_token == null) return;
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl/profile'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+      ).timeout(const Duration(seconds: 10));
+      if (_isSuccess(response.statusCode)) {
+        final decoded = json.decode(response.body);
+        if (decoded['user'] is Map<String, dynamic>) {
+          _user = decoded['user'] as Map<String, dynamic>;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('auth_user', json.encode(_user));
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> logout() async {
@@ -206,6 +278,8 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
     required String country,
+    String? username,
+    String? phone,
   }) async {
     final registerUri = Uri.parse('$_webBaseUrl/register');
 

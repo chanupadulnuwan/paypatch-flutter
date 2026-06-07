@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/connectivity_provider.dart';
 import '../../providers/friends_provider.dart';
+import '../../widgets/custom_alert.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -26,75 +27,228 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   void _showContactsSheet(BuildContext context) {
-    final friendsProv = Provider.of<FriendsProvider>(context, listen: false);
-    friendsProv.fetchPhoneContacts();
+    Provider.of<FriendsProvider>(context, listen: false).fetchPhoneContacts();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (sheetCtx) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.7,
+          initialChildSize: 0.75,
           minChildSize: 0.5,
           maxChildSize: 0.95,
           expand: false,
           builder: (_, scrollController) {
             return Consumer<FriendsProvider>(
-              builder: (context, prov, child) {
-                return Column(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      width: 40,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(10),
+              builder: (ctx, prov, _) {
+                final cs = Theme.of(ctx).colorScheme;
+
+                Widget body;
+                if (prov.isLoadingContacts) {
+                  body = Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 12),
+                      Text('Loading contacts...', style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6))),
+                    ],
+                  );
+                } else if (prov.contactsPermissionDenied) {
+                  body = const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Contacts permission denied.\nPlease allow contacts access in app settings.',
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                    Text(
-                      'Invite from Contacts',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: prov.isLoadingContacts
-                          ? const Center(child: CircularProgressIndicator())
-                          : prov.contactsPermissionDenied
-                              ? const Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.all(24.0),
-                                    child: Text(
-                                      'Contacts permission denied. Please allow contacts access in app settings.',
-                                      textAlign: TextAlign.center,
-                                    ),
+                  );
+                } else if (prov.contacts.isEmpty) {
+                  body = const Center(child: Text('No contacts found on this device.'));
+                } else {
+                  // Sort: PayPatch users first
+                  final sorted = [...prov.contacts];
+                  sorted.sort((a, b) {
+                    final aMatch = prov.getMatchedUser(a) != null ? 0 : 1;
+                    final bMatch = prov.getMatchedUser(b) != null ? 0 : 1;
+                    return aMatch.compareTo(bMatch);
+                  });
+
+                  final paypatchCount = sorted.where((c) => prov.getMatchedUser(c) != null).length;
+
+                  body = Column(
+                    children: [
+                      if (prov.isMatchingContacts)
+                        LinearProgressIndicator(color: cs.primary, backgroundColor: cs.outlineVariant),
+                      if (paypatchCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F7D6A).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline, color: Color(0xFF4F7D6A), size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '$paypatchCount contact${paypatchCount > 1 ? 's' : ''} already on PayPatch',
+                                  style: const TextStyle(
+                                    color: Color(0xFF4F7D6A),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
                                   ),
-                                )
-                              : prov.contacts.isEmpty
-                                  ? const Center(child: Text('No contacts found on phone.'))
-                                  : ListView.builder(
-                                      controller: scrollController,
-                                      itemCount: prov.contacts.length,
-                                      itemBuilder: (context, index) {
-                                        final c = prov.contacts[index];
-                                        final displayName = c.displayName ?? 'Unknown';
-                                        final phone = (c.phones != null && c.phones!.isNotEmpty) ? (c.phones!.first.value ?? 'No number') : 'No number';
-                                        return ListTile(
-                                          leading: CircleAvatar(
-                                            child: Text(displayName.isNotEmpty ? displayName[0] : '?'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          itemCount: sorted.length,
+                          itemBuilder: (ctx2, i) {
+                            final c = sorted[i];
+                            final name = c.displayName ?? 'Unknown';
+                            final phoneNum = (c.phones != null && c.phones!.isNotEmpty)
+                                ? (c.phones!.first.value ?? '')
+                                : '';
+                            final matched = prov.getMatchedUser(c);
+                            final isOnPayPatch = matched != null;
+
+                            return Card(
+                              elevation: 0,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                side: BorderSide(
+                                  color: isOnPayPatch
+                                      ? const Color(0xFF4F7D6A).withValues(alpha: 0.4)
+                                      : cs.outlineVariant,
+                                ),
+                              ),
+                              color: isOnPayPatch
+                                  ? const Color(0xFF4F7D6A).withValues(alpha: 0.05)
+                                  : cs.surface,
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isOnPayPatch
+                                      ? const Color(0xFF4F7D6A).withValues(alpha: 0.15)
+                                      : cs.outlineVariant.withValues(alpha: 0.4),
+                                  backgroundImage: (isOnPayPatch && matched['profile_photo_url'] != null)
+                                      ? NetworkImage(matched['profile_photo_url'].toString())
+                                      : null,
+                                  child: (isOnPayPatch && matched['profile_photo_url'] == null) || !isOnPayPatch
+                                      ? Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                          style: TextStyle(
+                                            color: isOnPayPatch ? const Color(0xFF4F7D6A) : cs.onSurface,
+                                            fontWeight: FontWeight.w700,
                                           ),
-                                          title: Text(displayName),
-                                          subtitle: Text(phone),
-                                          onTap: () {
-                                            Navigator.pop(sheetCtx);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('Invitation sent to $displayName!')),
-                                            );
-                                          },
-                                        );
-                                      },
+                                        )
+                                      : null,
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        isOnPayPatch ? (matched['name'] as String? ?? name) : name,
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                      ),
                                     ),
+                                    if (isOnPayPatch)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF4F7D6A),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: const Text(
+                                          'PayPatch',
+                                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(phoneNum, style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6), fontSize: 12)),
+                                    if (isOnPayPatch && matched['email'] != null)
+                                      Text(
+                                        matched['email'].toString(),
+                                        style: const TextStyle(fontSize: 11, color: Color(0xFF4F7D6A)),
+                                      ),
+                                  ],
+                                ),
+                                trailing: isOnPayPatch
+                                    ? FilledButton(
+                                        style: FilledButton.styleFrom(
+                                          backgroundColor: const Color(0xFF4F7D6A),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                                          minimumSize: const Size(0, 36),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.pop(sheetCtx);
+                                          showCustomAlert(
+                                            context,
+                                            '${matched['name']} is already on PayPatch! Add them to a group to start splitting.',
+                                            isSuccess: true,
+                                          );
+                                        },
+                                        child: const Text('Add'),
+                                      )
+                                    : OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                                          minimumSize: const Size(0, 36),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                        onPressed: () {
+                                          Navigator.pop(sheetCtx);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text('Invite sent to $name!')),
+                                          );
+                                        },
+                                        child: const Text('Invite'),
+                                      ),
+                                isThreeLine: matched != null && matched['email'] != null,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Add Friends',
+                            style: Theme.of(ctx).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const Spacer(),
+                          if (prov.contacts.isNotEmpty && !prov.isLoadingContacts)
+                            Text(
+                              '${prov.contacts.length} contacts',
+                              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.5), fontSize: 13),
+                            ),
+                        ],
+                      ),
                     ),
+                    Expanded(child: body),
                   ],
                 );
               },
@@ -197,7 +351,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                               ),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: isDark ? cs.primary.withOpacity(0.25) : cs.outlineVariant,
+                                  backgroundColor: isDark ? cs.primary.withValues(alpha: 0.25) : cs.outlineVariant,
                                   child: const Icon(Icons.person, color: Colors.white),
                                 ),
                                 title: Text(

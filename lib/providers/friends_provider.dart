@@ -20,6 +20,10 @@ class FriendsProvider extends ChangeNotifier {
   bool _isLoadingContacts = false;
   bool _contactsPermissionDenied = false;
 
+  // Matched contacts: phone -> user map from API
+  Map<String, Map<String, dynamic>> _matchedContacts = {};
+  bool _isMatchingContacts = false;
+
   List<dynamic> get friends => _friends;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -27,6 +31,8 @@ class FriendsProvider extends ChangeNotifier {
   List<Contact> get contacts => _contacts;
   bool get isLoadingContacts => _isLoadingContacts;
   bool get contactsPermissionDenied => _contactsPermissionDenied;
+  Map<String, Map<String, dynamic>> get matchedContacts => _matchedContacts;
+  bool get isMatchingContacts => _isMatchingContacts;
 
   FriendsProvider(this._token) {
     if (_token != null) {
@@ -131,6 +137,8 @@ class FriendsProvider extends ChangeNotifier {
           photoHighResolution: false,
         );
         _contacts = contacts.toList();
+        // After loading contacts, match them against PayPatch users
+        await _matchContactsWithPayPatch();
       } else {
         _contactsPermissionDenied = true;
       }
@@ -140,5 +148,68 @@ class FriendsProvider extends ChangeNotifier {
       _isLoadingContacts = false;
       notifyListeners();
     }
+  }
+
+  // --- MATCH CONTACTS BY PHONE ---
+  Future<void> _matchContactsWithPayPatch() async {
+    if (_token == null || _contacts.isEmpty) return;
+    _isMatchingContacts = true;
+    notifyListeners();
+
+    try {
+      // Collect all phone numbers from contacts
+      final phones = <String>[];
+      for (final contact in _contacts) {
+        if (contact.phones != null) {
+          for (final phone in contact.phones!) {
+            final num = phone.value?.trim();
+            if (num != null && num.isNotEmpty) {
+              phones.add(num);
+            }
+          }
+        }
+      }
+
+      if (phones.isEmpty) {
+        _isMatchingContacts = false;
+        notifyListeners();
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('$_baseUrl/users/match-phones'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: json.encode({'phones': phones}),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        final matched = decoded['matched'] as Map<String, dynamic>? ?? {};
+        _matchedContacts = matched.map(
+          (k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)),
+        );
+      }
+    } catch (_) {
+      // Silently fail — matching is a best-effort feature
+    } finally {
+      _isMatchingContacts = false;
+      notifyListeners();
+    }
+  }
+
+  // Get the PayPatch user matched to a contact (if any)
+  Map<String, dynamic>? getMatchedUser(Contact contact) {
+    if (contact.phones == null) return null;
+    for (final phone in contact.phones!) {
+      final num = phone.value?.trim();
+      if (num != null && _matchedContacts.containsKey(num)) {
+        return _matchedContacts[num];
+      }
+    }
+    return null;
   }
 }

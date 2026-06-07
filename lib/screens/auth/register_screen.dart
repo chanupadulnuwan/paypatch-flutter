@@ -27,7 +27,9 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _nameCtrl = TextEditingController();
+  final _usernameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
   bool _obscurePassword = true;
@@ -36,7 +38,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _usernameCtrl.dispose();
     _emailCtrl.dispose();
+    _phoneCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
@@ -44,12 +48,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     final name = _nameCtrl.text.trim();
+    final username = _usernameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
+    final phone = _phoneCtrl.text.trim();
     final password = _passwordCtrl.text;
     final confirmPassword = _confirmPasswordCtrl.text;
 
     if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _showError('Please fill in all fields.');
+      return;
+    }
+
+    if (username.isNotEmpty && !RegExp(r'^[a-zA-Z0-9_.-]+$').hasMatch(username)) {
+      _showError('Username can only contain letters, numbers, underscores, dots and dashes.');
       return;
     }
 
@@ -93,6 +104,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 email,
                 password,
                 country: _selectedCountry,
+                username: username.isEmpty ? null : username,
+                phone: phone.isEmpty ? null : phone,
               );
               if (success && mounted) {
                 Navigator.pushAndRemoveUntil(
@@ -209,11 +222,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               const SizedBox(height: 12),
                               TextField(
+                                controller: _usernameCtrl,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.alternate_email),
+                                  hintText: 'Username (optional)',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
                                 controller: _emailCtrl,
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: InputDecoration(
                                   prefixIcon: const Icon(Icons.email_outlined),
                                   hintText: 'Email',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: _phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.phone_outlined),
+                                  hintText: 'Phone number (optional, e.g. +94771234567)',
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
