@@ -19,8 +19,8 @@ void main() async {
 class PayPatchApp extends StatefulWidget {
   const PayPatchApp({super.key});
 
-  static _PayPatchAppState of(BuildContext context) =>
-      context.findAncestorStateOfType<_PayPatchAppState>()!;
+  static ThemeController themeControllerOf(BuildContext context) =>
+      context.findAncestorStateOfType<_PayPatchAppState>()!.controller;
 
   @override
   State<PayPatchApp> createState() => _PayPatchAppState();
@@ -53,7 +53,10 @@ class _PayPatchAppState extends State<PayPatchApp> {
           create: (context) => GroupsProvider(
             Provider.of<AuthProvider>(context, listen: false).token,
           ),
-          update: (context, auth, previous) => GroupsProvider(auth.token),
+          update: (context, auth, previous) {
+            previous?.updateToken(auth.token);
+            return previous ?? GroupsProvider(auth.token);
+          },
         ),
         ChangeNotifierProxyProvider<AuthProvider, FriendsProvider>(
           create: (context) => FriendsProvider(

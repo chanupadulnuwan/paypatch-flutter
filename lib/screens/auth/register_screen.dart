@@ -5,6 +5,19 @@ import '../home/home_screen.dart';
 import '../../widgets/google_logo.dart';
 import '../../widgets/custom_alert.dart';
 
+const _countryOptions = [
+  'United States',
+  'United Kingdom',
+  'Canada',
+  'Australia',
+  'Singapore',
+  'Sri Lanka',
+  'India',
+  'Germany',
+  'France',
+  'Japan',
+];
+
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -18,6 +31,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
   bool _obscurePassword = true;
+  String _selectedCountry = 'Sri Lanka';
 
   @override
   void dispose() {
@@ -74,7 +88,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             
             final auth = Provider.of<AuthProvider>(this.context, listen: false);
             try {
-              final success = await auth.register(name, email, password);
+              final success = await auth.register(
+                name,
+                email,
+                password,
+                country: _selectedCountry,
+              );
               if (success && mounted) {
                 Navigator.pushAndRemoveUntil(
                   this.context,
@@ -95,25 +114,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleGoogleSignUp() async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Text(
-                'Connecting to Google Accounts...',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ],
-        ),
-      ),
+
+    showBlockingStatusDialog(
+      context,
+      title: 'Connecting Google',
+      message: 'Signing you in with the PayPatch Google demo profile...',
     );
 
     try {
@@ -176,7 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       Text(
                         'Set up your PayPatch account to split costs immediately.',
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurface.withOpacity(0.7),
+                          color: cs.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -215,6 +220,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ),
                               const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                initialValue: _selectedCountry,
+                                decoration: InputDecoration(
+                                  prefixIcon: const Icon(Icons.public_outlined),
+                                  labelText: 'Country',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                items: _countryOptions
+                                    .map(
+                                      (country) => DropdownMenuItem<String>(
+                                        value: country,
+                                        child: Text(country),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) {
+                                  if (value == null) return;
+                                  setState(() => _selectedCountry = value);
+                                },
+                              ),
+                              const SizedBox(height: 12),
                               TextField(
                                 controller: _passwordCtrl,
                                 obscureText: _obscurePassword,
@@ -223,7 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   suffixIcon: IconButton(
                                     icon: Icon(
                                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                      color: cs.onSurface.withOpacity(0.7),
+                                      color: cs.onSurface.withValues(alpha: 0.7),
                                     ),
                                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                   ),
@@ -269,7 +297,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   Expanded(child: Divider(color: cs.outlineVariant)),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    child: Text('OR', style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurface.withOpacity(0.5))),
+                                    child: Text(
+                                      'OR',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: cs.onSurface.withValues(alpha: 0.5),
+                                      ),
+                                    ),
                                   ),
                                   Expanded(child: Divider(color: cs.outlineVariant)),
                                 ],
@@ -406,7 +439,9 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
           const SizedBox(height: 8),
           Text(
             'We sent a 6-digit verification code to ${widget.email}. Enter it below to complete your registration.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurface.withOpacity(0.7)),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.7),
+            ),
           ),
           const SizedBox(height: 20),
           Row(

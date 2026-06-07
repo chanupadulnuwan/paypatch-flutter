@@ -33,15 +33,17 @@ void main() {
         members: 5,
         balance: 25.50,
         description: 'Currency: LKR',
+        currency: 'LKR',
       );
 
       final json = g.toJson();
 
       expect(json['id'], '12');
       expect(json['name'], 'Test Group');
-      expect(json['members'], 5);
-      expect(json['balance'], 25.50);
+      expect(json['member_count'], 5);
+      expect(json['your_balance'], 25.50);
       expect(json['description'], 'Currency: LKR');
+      expect(json['currency'], 'LKR');
     });
   });
 }
