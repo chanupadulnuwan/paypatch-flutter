@@ -5,9 +5,10 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:contacts_service_plus/contacts_service_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../config.dart';
 
 class FriendsProvider extends ChangeNotifier {
-  static const String _baseUrl = 'http://10.0.2.2:8000/api';
+  static const String _baseUrl = AppConfig.baseUrl;
 
   final String? _token;
   List<dynamic> _friends = [];

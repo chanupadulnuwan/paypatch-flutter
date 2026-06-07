@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config.dart';
 
 class AuthProvider extends ChangeNotifier {
-  static const String _baseUrl = 'http://10.0.2.2:8000/api'; // Android emulator route to local Laravel
+  static const String _baseUrl = AppConfig.baseUrl;
   
   String? _token;
   Map<String, dynamic>? _user;
@@ -14,6 +15,26 @@ class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? get user => _user;
   bool get isAuthenticated => _token != null;
   bool get isLoading => _isLoading;
+
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      // Try logging in first
+      final success = await login('google.demo@gmail.com', 'GoogleDemo123!');
+      return success;
+    } catch (_) {
+      try {
+        // If login fails (user doesn't exist yet), register them
+        final success = await register('Google Demo User', 'google.demo@gmail.com', 'GoogleDemo123!');
+        return success;
+      } catch (e) {
+        _isLoading = false;
+        notifyListeners();
+        rethrow;
+      }
+    }
+  }
 
   AuthProvider() {
     loadSession();

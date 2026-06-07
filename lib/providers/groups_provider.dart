@@ -5,9 +5,10 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import '../models/group.dart';
 import '../data/sample_data.dart';
+import '../config.dart';
 
 class GroupsProvider extends ChangeNotifier {
-  static const String _baseUrl = 'http://10.0.2.2:8000/api';
+  static const String _baseUrl = AppConfig.baseUrl;
 
   final String? _token;
   List<Group> _groups = [];

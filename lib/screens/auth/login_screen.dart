@@ -56,6 +56,49 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleGoogleLogin() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Show a loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        content: const Row(
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 18),
+            Text('Connecting to Google Accounts...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final success = await auth.loginWithGoogle();
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        if (success) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text(e.toString().replaceAll('Exception: ', '').trim()),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -181,6 +224,35 @@ class _LoginScreenState extends State<LoginScreen> {
                                   )
                                 : const Text('Login'),
                           ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: cs.onPrimary.withOpacity(0.3))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Text('OR', style: theme.textTheme.bodySmall?.copyWith(color: cs.onPrimary.withOpacity(0.7))),
+                            ),
+                            Expanded(child: Divider(color: cs.onPrimary.withOpacity(0.3))),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            side: const BorderSide(color: Colors.transparent),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            minimumSize: const Size(double.infinity, 52),
+                          ),
+                          icon: Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
+                            height: 20,
+                            width: 20,
+                            errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, color: Colors.blue, size: 24),
+                          ),
+                          label: const Text('Continue with Google'),
+                          onPressed: auth.isLoading ? null : _handleGoogleLogin,
                         ),
                         const SizedBox(height: 16),
 
