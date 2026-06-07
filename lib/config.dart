@@ -1,7 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppConfig {
-  static String _baseUrl = 'http://192.168.1.88/CB016173/paypatch-laravel/public/api'; // Default fallback for XAMPP
+  static String _baseUrl = 'https://sea-turtle-app-4spaa.ondigitalocean.app/api'; // Default hosted backend
 
   static String get baseUrl => _baseUrl;
 
@@ -9,9 +9,15 @@ class AppConfig {
   static Future<void> loadIp() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _baseUrl = prefs.getString('api_base_url') ?? 'http://192.168.1.88/CB016173/paypatch-laravel/public/api';
+      final savedUrl = prefs.getString('api_base_url');
+      if (savedUrl == null || savedUrl.contains('192.168.') || savedUrl.contains('localhost')) {
+        _baseUrl = 'https://sea-turtle-app-4spaa.ondigitalocean.app/api';
+        await prefs.setString('api_base_url', _baseUrl);
+      } else {
+        _baseUrl = savedUrl;
+      }
     } catch (_) {
-      _baseUrl = 'http://192.168.1.88/CB016173/paypatch-laravel/public/api';
+      _baseUrl = 'https://sea-turtle-app-4spaa.ondigitalocean.app/api';
     }
   }
 
