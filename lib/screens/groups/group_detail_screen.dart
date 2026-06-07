@@ -267,7 +267,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         convertUsdToLkr(balanceValue.abs(), usdToLkrRate, currency);
 
     final pageBackground =
-        isDark ? cs.surface : const Color(0xFFF4FAF4);
+        isDark ? cs.surface : Colors.white;
 
     return Scaffold(
       backgroundColor: pageBackground,

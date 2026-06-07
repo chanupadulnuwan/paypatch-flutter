@@ -75,9 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final themeCtrl = Provider.of<ThemeController>(context);
 
-    const lightPageBg = Color.fromARGB(255, 245, 251, 245);
-    final pageBg = isDark ? cs.surface : lightPageBg;
-    final cardBg = isDark ? cs.surfaceContainerHighest : lightPageBg;
+    final pageBg = isDark ? cs.surface : Colors.white;
+    final cardBg = isDark ? cs.surfaceContainerHighest : Colors.white;
 
     return Scaffold(
       backgroundColor: pageBg,

@@ -121,10 +121,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
     );
 
     final balanceText = normalizedBalance >= 0
-        ? 'Rs. ${normalizedBalance.toStringAsFixed(2)} owed to you'
+        ? 'Rs. ${normalizedBalance.toStringAsFixed(2)} you are owed'
         : 'Rs. ${normalizedBalance.abs().toStringAsFixed(2)} you owe';
 
-    const lightPageBg = Color(0xFFF4FAF4);
     final headerBg = isDark ? cs.surface : cs.primary;
     final headerText = isDark ? cs.onSurface : Colors.white;
     final headerSubText = isDark
@@ -136,7 +135,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
         final isTablet = constraints.maxWidth >= 760;
 
         return Scaffold(
-          backgroundColor: isDark ? cs.surface : lightPageBg,
+          backgroundColor: isDark ? cs.surface : Colors.white,
           floatingActionButton: FloatingActionButton.extended(
             backgroundColor: isDark ? cs.surface : cs.primary,
             foregroundColor: isDark ? cs.primary : Colors.white,
@@ -188,7 +187,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Hello $userName',
+                                  'hello $userName!',
                                   style: theme.textTheme.headlineSmall?.copyWith(
                                     color: headerText,
                                     fontWeight: FontWeight.w800,
@@ -236,53 +235,54 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 6),
                         child: const AppSearchBar(),
                       ),
-                      const SizedBox(height: 18),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? cs.surfaceContainerHigh
-                              : Colors.white.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? cs.surfaceContainerHigh
+                          : const Color(0xFFE8AC73),
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total Balance',
+                          style: theme.textTheme.bodyMedium?.copyWith(
                             color: isDark
-                                ? cs.outlineVariant
-                                : Colors.white.withValues(alpha: 0.12),
+                                ? cs.onSurface.withValues(alpha: 0.72)
+                                : Colors.white,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Approx. total balance',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: headerSubText,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              balanceText,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                color: headerText,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            if (groupsProvider.usdToLkrRate != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  'USD groups converted using 1 USD = Rs. ${groupsProvider.usdToLkrRate!.toStringAsFixed(2)}',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: headerSubText,
-                                  ),
-                                ),
-                              ),
-                          ],
+                        const SizedBox(height: 8),
+                        Text(
+                          balanceText,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            color: isDark ? cs.onSurface : Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                    ],
+                        if (groupsProvider.usdToLkrRate != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              '1 USD = Rs. ${groupsProvider.usdToLkrRate!.toStringAsFixed(2)}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDark
+                                    ? cs.onSurface.withValues(alpha: 0.66)
+                                    : Colors.white.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -400,12 +400,10 @@ class _GroupCard extends StatelessWidget {
       group.currency,
     );
 
-    final coverGradient = _gradientForPreset(group.coverImagePreset);
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(18),
         onTap: () {
           Navigator.push(
             context,
@@ -413,92 +411,41 @@ class _GroupCard extends StatelessWidget {
           );
         },
         child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: isDark ? cs.surfaceContainerHigh : Colors.white,
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(18),
             border: Border.all(color: cs.outlineVariant),
             boxShadow: [
               if (!isDark)
                 BoxShadow(
-                  color: cs.shadow.withValues(alpha: 0.06),
-                  blurRadius: 18,
-                  offset: const Offset(0, 12),
+                  color: cs.shadow.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Container(
-                height: 86,
-                decoration: BoxDecoration(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(26),
-                  ),
-                  gradient: group.coverImageUrl == null ? coverGradient : null,
-                  image: group.coverImageUrl != null
-                      ? DecorationImage(
-                          image: NetworkImage(group.coverImageUrl!),
-                          fit: BoxFit.cover,
+              Hero(
+                tag: 'group-avatar-${group.id}',
+                child: CircleAvatar(
+                  radius: 26,
+                  backgroundColor: cs.primary.withValues(alpha: 0.12),
+                  backgroundImage: group.profileImageUrl != null
+                      ? NetworkImage(group.profileImageUrl!)
+                      : null,
+                  child: group.profileImageUrl == null
+                      ? Icon(
+                          Icons.people_alt_outlined,
+                          color: cs.primary,
+                          size: 24,
                         )
                       : null,
                 ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(26),
-                    ),
-                    color: Colors.black.withValues(alpha: 0.16),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Hero(
-                        tag: 'group-avatar-${group.id}',
-                        child: CircleAvatar(
-                          radius: 26,
-                          backgroundColor: Colors.white.withValues(alpha: 0.92),
-                          backgroundImage: group.profileImageUrl != null
-                              ? NetworkImage(group.profileImageUrl!)
-                              : null,
-                          child: group.profileImageUrl == null
-                              ? Text(
-                                  group.name.isEmpty
-                                      ? 'G'
-                                      : group.name[0].toUpperCase(),
-                                  style: TextStyle(
-                                    color: cs.primary,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                )
-                              : null,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          group.currency,
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -506,49 +453,50 @@ class _GroupCard extends StatelessWidget {
                       group.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.people_alt_outlined,
-                          size: 18,
-                          color: cs.onSurface.withValues(alpha: 0.68),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${group.members} members',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurface.withValues(alpha: 0.72),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      balanceText,
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: group.balance >= 0
-                            ? const Color(0xFF146B2E)
-                            : const Color(0xFFCC7A29),
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    if (usdApprox != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Approx. Rs. ${usdApprox.toStringAsFixed(2)}',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurface.withValues(alpha: 0.66),
-                          ),
-                        ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${group.members} members',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.62),
                       ),
+                    ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatCurrencyAmount(group.currency, group.balance.abs()),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: group.balance >= 0
+                          ? const Color(0xFF146B2E)
+                          : const Color(0xFFCC7A29),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    group.balance >= 0 ? 'you are owed' : 'you owe',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: group.balance >= 0
+                          ? const Color(0xFF146B2E)
+                          : const Color(0xFFCC7A29),
+                    ),
+                  ),
+                  if (usdApprox != null)
+                    Text(
+                      'Rs. ${usdApprox.toStringAsFixed(0)}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.55),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

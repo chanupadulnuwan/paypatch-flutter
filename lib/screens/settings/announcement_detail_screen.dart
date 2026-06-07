@@ -29,8 +29,7 @@ class AnnouncementDetailScreen extends StatelessWidget {
     final String priority = announcement['priority'] ?? 'low';
     final String author = announcement['author'] ?? 'Admin';
 
-    const lightPageBg = Color.fromARGB(255, 245, 251, 245);
-    final pageBg = isDark ? cs.surface : lightPageBg;
+    final pageBg = isDark ? cs.surface : Colors.white;
     final cardBg = isDark ? cs.surfaceContainerHighest : Colors.white;
 
     return Scaffold(
