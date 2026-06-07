@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import 'register_screen.dart';
 import '../home/home_screen.dart';
+import '../../widgets/google_logo.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,11 +66,17 @@ class _LoginScreenState extends State<LoginScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        content: const Row(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(width: 18),
-            Text('Connecting to Google Accounts...'),
+            const CircularProgressIndicator(),
+            const SizedBox(width: 18),
+            Expanded(
+              child: Text(
+                'Connecting to Google Accounts...',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
           ],
         ),
       ),
@@ -240,18 +247,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            side: const BorderSide(color: Colors.transparent),
+                            foregroundColor: const Color(0xFF1F1F1F),
+                            side: BorderSide(color: Colors.grey.shade300),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             minimumSize: const Size(double.infinity, 52),
+                            elevation: 0,
+                            shadowColor: Colors.transparent,
                           ),
-                          icon: Image.network(
-                            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png',
-                            height: 20,
-                            width: 20,
-                            errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, color: Colors.blue, size: 24),
+                          icon: const GoogleLogo(size: 20),
+                          label: const Text(
+                            'Continue with Google',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.2,
+                            ),
                           ),
-                          label: const Text('Continue with Google'),
                           onPressed: auth.isLoading ? null : _handleGoogleLogin,
                         ),
                         const SizedBox(height: 16),
