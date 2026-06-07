@@ -561,6 +561,56 @@ class GroupsProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> settleUp({
+    required String groupId,
+    required int fromUserId,
+    required int toUserId,
+    required double amount,
+  }) async {
+    if (_token == null) return false;
+    _isLoadingDetails = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/groups/$groupId/settle'),
+        headers: {..._authJsonHeaders, 'Content-Type': 'application/json'},
+        body: json.encode({
+          'from_user_id': fromUserId,
+          'to_user_id': toUserId,
+          'amount': amount,
+        }),
+      );
+      if (_isSuccessful(response.statusCode)) {
+        await fetchGroupDetails(groupId, isOnline: true);
+        await fetchGroups(isOnline: true);
+        return true;
+      }
+      _errorMessage = _extractErrorMessage(response) ?? 'Failed to record settlement.';
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '').trim();
+      return false;
+    } finally {
+      _isLoadingDetails = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> sendReminders(String groupId, List<int> memberIds) async {
+    if (_token == null) return false;
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/groups/$groupId/remind'),
+        headers: {..._authJsonHeaders, 'Content-Type': 'application/json'},
+        body: json.encode({'member_ids': memberIds}),
+      );
+      return _isSuccessful(response.statusCode);
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<http.Response> _sendMultipartRequest({
     required Uri uri,
     required Map<String, String> fields,

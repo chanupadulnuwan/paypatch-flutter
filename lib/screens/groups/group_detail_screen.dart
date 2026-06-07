@@ -153,6 +153,47 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     }
   }
 
+  void _openSettleUpSheet({
+    required List<Map<String, dynamic>> members,
+    required List<Map<String, dynamic>> expenses,
+    required int currentUserId,
+    required String currency,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (_) => _SettleUpSheet(
+        groupId: widget.group.id,
+        members: members,
+        expenses: expenses,
+        currentUserId: currentUserId,
+        currency: currency,
+      ),
+    );
+  }
+
+  void _openBalancesSheet({
+    required List<Map<String, dynamic>> members,
+    required List<Map<String, dynamic>> expenses,
+    required int currentUserId,
+    required String currency,
+  }) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (_) => _BalancesSheet(
+        members: members,
+        expenses: expenses,
+        currentUserId: currentUserId,
+        currency: currency,
+      ),
+    );
+  }
+
   Future<void> _confirmDeleteExpense(Map<String, dynamic> expense) async {
     final shouldDelete = await showConfirmationDialog(
       context,
@@ -245,6 +286,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         .whereType<Map<String, dynamic>>()
         .map((expense) => Map<String, dynamic>.from(expense))
         .toList();
+
+    final members = (details?['members'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+    final currentUserId = members
+        .where((m) => m['is_current_user'] == true)
+        .map((m) => (m['id'] as num).toInt())
+        .firstOrNull ?? 0;
 
     final groupName =
         groupData?['name']?.toString() ?? widget.group.name;
@@ -341,20 +391,28 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               child: Row(
                 children: [
                   Expanded(
-                    child: _InfoPill(
-                      icon: Icons.people_alt_outlined,
-                      label: '$memberCount members',
-                      onTap: () => _openMembersSheet(canEdit),
+                    child: _ActionButton(
+                      label: 'Settle Up',
+                      icon: Icons.handshake_outlined,
+                      onTap: () => _openSettleUpSheet(
+                        members: members,
+                        expenses: expenses,
+                        currentUserId: currentUserId,
+                        currency: currency,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: _InfoPill(
-                      icon: Icons.currency_exchange_rounded,
-                      label: currency == 'USD' && usdToLkrRate != null
-                          ? '1 USD = Rs. ${usdToLkrRate.toStringAsFixed(2)}'
-                          : 'Currency: $currency',
-                      onTap: () {},
+                    child: _ActionButton(
+                      label: 'Balances',
+                      icon: Icons.bar_chart_rounded,
+                      onTap: () => _openBalancesSheet(
+                        members: members,
+                        expenses: expenses,
+                        currentUserId: currentUserId,
+                        currency: currency,
+                      ),
                     ),
                   ),
                 ],
@@ -550,12 +608,13 @@ class _GroupHeader extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Currency: $currency   $memberCount members',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.84),
-                        ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          _CoverPill(icon: Icons.people_alt_outlined, label: '$memberCount members'),
+                          const SizedBox(width: 8),
+                          _CoverPill(icon: Icons.monetization_on_outlined, label: currency),
+                        ],
                       ),
                     ],
                   ),
@@ -805,11 +864,29 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
   }
 
   Future<void> _pickReceiptImage() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera_alt_rounded),
+              title: const Text('Take a photo'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_rounded),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
     try {
-      final file = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 72,
-      );
+      final file = await _picker.pickImage(source: source, imageQuality: 72);
       if (file != null && mounted) {
         setState(() => _receiptImage = file);
       }
@@ -819,13 +896,16 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
   Future<void> _fetchGps() async {
     setState(() => _isFetchingGps = true);
     final position = await widget.getCurrentLocation();
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     setState(() {
       _gpsPosition = position;
       _isFetchingGps = false;
     });
+    if (position == null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not get location. Check permissions.')),
+      );
+    }
   }
 
   Future<void> _submit() async {
@@ -1652,50 +1732,64 @@ class _EditGroupSheetState extends State<_EditGroupSheet> {
                       color: Colors.black.withValues(alpha: 0.18),
                     ),
                     padding: const EdgeInsets.all(16),
-                    child: Align(
-                      alignment: Alignment.bottomLeft,
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.96),
-                            backgroundImage: profileImage,
-                            child: _newProfilePath == null &&
-                                    groupData?['profile_image_url'] == null
-                                ? Text(
-                                    (groupData?['name']?.toString() ??
-                                                _nameController.text)
-                                            .isEmpty
-                                        ? 'G'
-                                        : (groupData?['name']?.toString() ??
-                                                _nameController.text)[0]
-                                            .toUpperCase(),
-                                    style: TextStyle(
-                                      color: cs.primary,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  )
-                                : null,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Tap to change the cover image',
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700,
-                              ),
+                    child: Stack(
+                      children: [
+                        Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () => _pickImage(false),
+                                  child: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 28,
+                                        backgroundColor: Colors.white.withValues(alpha: 0.96),
+                                        backgroundImage: profileImage,
+                                        child: _newProfilePath == null && groupData?['profile_image_url'] == null
+                                            ? Text(
+                                                (groupData?['name']?.toString() ?? _nameController.text).isEmpty
+                                                    ? 'G'
+                                                    : (groupData?['name']?.toString() ?? _nameController.text)[0].toUpperCase(),
+                                                style: TextStyle(color: cs.primary, fontWeight: FontWeight.w800),
+                                              )
+                                            : null,
+                                      ),
+                                      Positioned(
+                                        bottom: 0,
+                                        right: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(3),
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xFFE8AC73),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.camera_alt_rounded, size: 12, color: Colors.white),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => _pickImage(false),
-                            icon: const Icon(Icons.camera_alt_rounded),
-                            color: Colors.white,
-                            tooltip: 'Change profile picture',
+                        ),
+                        const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.camera_alt_rounded, color: Colors.white, size: 32),
+                              SizedBox(height: 6),
+                              Text(
+                                'Change Cover',
+                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1857,6 +1951,468 @@ class _EditGroupSheetState extends State<_EditGroupSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Action Button ────────────────────────────────────────────────────────────
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFE8AC73),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Cover Pill ───────────────────────────────────────────────────────────────
+class _CoverPill extends StatelessWidget {
+  const _CoverPill({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 13),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Settle Up Sheet ──────────────────────────────────────────────────────────
+class _SettleUpSheet extends StatefulWidget {
+  const _SettleUpSheet({
+    required this.groupId,
+    required this.members,
+    required this.expenses,
+    required this.currentUserId,
+    required this.currency,
+  });
+
+  final String groupId;
+  final List<Map<String, dynamic>> members;
+  final List<Map<String, dynamic>> expenses;
+  final int currentUserId;
+  final String currency;
+
+  @override
+  State<_SettleUpSheet> createState() => _SettleUpSheetState();
+}
+
+class _SettleUpSheetState extends State<_SettleUpSheet> {
+  final Set<int> _selectedIds = {};
+  bool _isBusy = false;
+
+  Map<int, double> get _balances {
+    final memberCount = widget.members.length;
+    if (memberCount <= 1) return {};
+    final Map<int, double> bal = {};
+    for (final m in widget.members) {
+      final id = (m['id'] as num).toInt();
+      if (id != widget.currentUserId) bal[id] = 0.0;
+    }
+    for (final exp in widget.expenses) {
+      final paidBy = (exp['paid_by'] as num?)?.toInt() ?? 0;
+      final amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
+      final share = amount / memberCount;
+      if (paidBy == widget.currentUserId) {
+        for (final id in bal.keys) {
+          bal[id] = (bal[id] ?? 0) + share;
+        }
+      } else if (bal.containsKey(paidBy)) {
+        bal[paidBy] = (bal[paidBy] ?? 0) - share;
+      }
+    }
+    return bal;
+  }
+
+  String _nameOf(int userId) {
+    return widget.members
+            .where((m) => (m['id'] as num).toInt() == userId)
+            .map((m) => m['name']?.toString() ?? 'User')
+            .firstOrNull ??
+        'User';
+  }
+
+  Future<void> _settleSelected() async {
+    if (_selectedIds.isEmpty) return;
+    setState(() => _isBusy = true);
+    final provider = Provider.of<GroupsProvider>(context, listen: false);
+    final balances = _balances;
+    bool anyFail = false;
+    for (final id in _selectedIds) {
+      final bal = balances[id] ?? 0;
+      if (bal.abs() < 0.01) continue;
+      final success = await provider.settleUp(
+        groupId: widget.groupId,
+        fromUserId: bal > 0 ? id : widget.currentUserId,
+        toUserId: bal > 0 ? widget.currentUserId : id,
+        amount: bal.abs(),
+      );
+      if (!success) anyFail = true;
+    }
+    if (!mounted) return;
+    setState(() => _isBusy = false);
+    Navigator.pop(context);
+    if (anyFail) {
+      await showCustomAlert(context, provider.errorMessage ?? 'Some settlements failed.');
+    } else {
+      await showCustomAlert(context, 'Settled up successfully!', isSuccess: true);
+    }
+  }
+
+  Future<void> _remindSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final balances = _balances;
+    final toRemind = _selectedIds
+        .where((id) => (balances[id] ?? 0) > 0.01)
+        .toList();
+    if (toRemind.isEmpty) {
+      await showCustomAlert(context, 'No one in your selection owes you money.');
+      return;
+    }
+    setState(() => _isBusy = true);
+    final provider = Provider.of<GroupsProvider>(context, listen: false);
+    final success = await provider.sendReminders(widget.groupId, toRemind);
+    if (!mounted) return;
+    setState(() => _isBusy = false);
+    Navigator.pop(context);
+    await showCustomAlert(
+      context,
+      success ? 'Reminders sent to ${toRemind.length} member(s).' : 'Failed to send reminders.',
+      isSuccess: success,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final balances = _balances;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Settle Up',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFFE8AC73),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Select who you want to settle with or remind.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (balances.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text('No balances to show yet.')),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 320),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: balances.entries.map((entry) {
+                    final memberId = entry.key;
+                    final bal = entry.value;
+                    final isSelected = _selectedIds.contains(memberId);
+                    final isOwedByThem = bal > 0.01;
+                    final isOwedByMe = bal < -0.01;
+                    return CheckboxListTile(
+                      value: isSelected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            _selectedIds.add(memberId);
+                          } else {
+                            _selectedIds.remove(memberId);
+                          }
+                        });
+                      },
+                      title: Text(
+                        _nameOf(memberId),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      subtitle: Text(
+                        isOwedByThem
+                            ? 'Owes you ${formatCurrencyAmount(widget.currency, bal)}'
+                            : isOwedByMe
+                                ? 'You owe ${formatCurrencyAmount(widget.currency, bal.abs())}'
+                                : 'All settled',
+                        style: TextStyle(
+                          color: isOwedByThem
+                              ? const Color(0xFF146B2E)
+                              : isOwedByMe
+                                  ? const Color(0xFFCC7A29)
+                                  : cs.onSurface.withValues(alpha: 0.5),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      activeColor: const Color(0xFFE8AC73),
+                      checkColor: Colors.white,
+                    );
+                  }).toList(),
+                ),
+              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: Color(0xFFE8AC73)),
+                      foregroundColor: const Color(0xFFE8AC73),
+                    ),
+                    onPressed: _isBusy ? null : _remindSelected,
+                    icon: const Icon(Icons.notifications_outlined),
+                    label: const Text('Remind'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: const Color(0xFFE8AC73),
+                    ),
+                    onPressed: _isBusy ? null : _settleSelected,
+                    icon: _isBusy
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.handshake_outlined),
+                    label: const Text('Settle Up'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Balances Sheet ───────────────────────────────────────────────────────────
+class _BalancesSheet extends StatelessWidget {
+  const _BalancesSheet({
+    required this.members,
+    required this.expenses,
+    required this.currentUserId,
+    required this.currency,
+  });
+
+  final List<Map<String, dynamic>> members;
+  final List<Map<String, dynamic>> expenses;
+  final int currentUserId;
+  final String currency;
+
+  Map<int, double> get _balances {
+    final memberCount = members.length;
+    if (memberCount <= 1) return {};
+    final Map<int, double> bal = {};
+    for (final m in members) {
+      final id = (m['id'] as num).toInt();
+      if (id != currentUserId) bal[id] = 0.0;
+    }
+    for (final exp in expenses) {
+      final paidBy = (exp['paid_by'] as num?)?.toInt() ?? 0;
+      final amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
+      final share = amount / memberCount;
+      if (paidBy == currentUserId) {
+        for (final id in bal.keys) {
+          bal[id] = (bal[id] ?? 0) + share;
+        }
+      } else if (bal.containsKey(paidBy)) {
+        bal[paidBy] = (bal[paidBy] ?? 0) - share;
+      }
+    }
+    return bal;
+  }
+
+  String _nameOf(int userId) {
+    return members
+            .where((m) => (m['id'] as num).toInt() == userId)
+            .map((m) => m['name']?.toString() ?? 'User')
+            .firstOrNull ??
+        'User';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final balances = _balances;
+    final maxAbs = balances.values.fold(0.0, (m, v) => v.abs() > m ? v.abs() : m);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Balances',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: cs.primary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Your net balance with each member based on expenses.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.65),
+              ),
+            ),
+            const SizedBox(height: 16),
+            if (balances.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text('No expenses to calculate balances from.')),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 360),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: balances.entries.map((entry) {
+                    final memberId = entry.key;
+                    final bal = entry.value;
+                    final isOwed = bal > 0.01;
+                    final fraction = maxAbs > 0 ? bal.abs() / maxAbs : 0.0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _nameOf(memberId),
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              Text(
+                                bal.abs() < 0.01
+                                    ? 'Settled'
+                                    : isOwed
+                                        ? '+${formatCurrencyAmount(currency, bal)}'
+                                        : '-${formatCurrencyAmount(currency, bal.abs())}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: bal.abs() < 0.01
+                                      ? cs.onSurface.withValues(alpha: 0.45)
+                                      : isOwed
+                                          ? const Color(0xFF146B2E)
+                                          : const Color(0xFFCC7A29),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: fraction,
+                              minHeight: 8,
+                              backgroundColor: cs.outlineVariant.withValues(alpha: 0.4),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                bal.abs() < 0.01
+                                    ? cs.outlineVariant
+                                    : isOwed
+                                        ? const Color(0xFF146B2E)
+                                        : const Color(0xFFCC7A29),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isOwed
+                                ? '${_nameOf(memberId)} owes you'
+                                : bal.abs() < 0.01
+                                    ? 'All settled up'
+                                    : 'You owe ${_nameOf(memberId)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+          ],
         ),
       ),
     );
