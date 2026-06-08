@@ -252,13 +252,30 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        'Rs. ${normalizedBalance.abs().toStringAsFixed(2)} ${normalizedBalance >= 0 ? 'you are owed' : 'you owe'}',
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          height: 1.1,
+                      RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Rs. ${normalizedBalance.abs().toStringAsFixed(2)} ',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                height: 1.1,
+                              ),
+                            ),
+                            TextSpan(
+                              text: normalizedBalance >= 0 ? 'you are owed' : 'you owe',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: normalizedBalance >= 0
+                                    ? const Color(0xFF1B7A3E)
+                                    : const Color(0xFFB84A00),
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 8),
