@@ -25,13 +25,24 @@ class GroupDetailScreen extends StatefulWidget {
 
 class _GroupDetailScreenState extends State<GroupDetailScreen> {
   int _currentUserId = 0;
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      if (mounted) setState(() => _scrollOffset = _scrollController.offset);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncDetails();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _syncDetails() async {
@@ -365,6 +376,13 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final coverPreset = groupData?['cover_image_preset']?.toString() ?? widget.group.coverImagePreset;
     final profileImageUrl = groupData?['profile_image_url']?.toString() ?? widget.group.profileImageUrl;
 
+    // Header collapses after 270px (height of _GroupHeader)
+    const double headerHeight = 270.0;
+    const double balanceCardHeight = 130.0;
+    final double scrolled = _scrollOffset.clamp(0.0, headerHeight);
+    final double t = (scrolled / headerHeight).clamp(0.0, 1.0); // 0=expanded, 1=collapsed
+    final topPadding = MediaQuery.of(context).padding.top;
+
     return Scaffold(
       backgroundColor: pageBackground,
       floatingActionButton: Column(
@@ -403,12 +421,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _syncDetails,
-        child: ListView(
-          padding: EdgeInsets.zero,
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
+      body: Stack(
+        children: [
+          // ── Main scrollable content ──────────────────────────────────────
+          RefreshIndicator(
+            onRefresh: _syncDetails,
+            child: ListView(
+              controller: _scrollController,
+              padding: EdgeInsets.zero,
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
             _GroupHeader(
               groupId: widget.group.id,
               name: groupName,
@@ -581,6 +603,107 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             const SizedBox(height: 100),
           ],
         ),
+      ),
+
+          // ── Sticky collapsed header (appears when scrolled past cover) ──
+          if (t > 0)
+            Positioned(
+              top: 0, left: 0, right: 0,
+              child: Opacity(
+                opacity: t,
+                child: Container(
+                  color: cs.surface,
+                  padding: EdgeInsets.fromLTRB(8, topPadding + 8, 8, 8),
+                  child: Row(
+                    children: [
+                      _HeaderActionIcon(icon: Icons.arrow_back_rounded, onTap: () => Navigator.pop(context)),
+                      const SizedBox(width: 10),
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: cs.primaryContainer,
+                        backgroundImage: profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
+                        child: profileImageUrl == null
+                            ? Text(
+                                groupName.isEmpty ? 'G' : groupName[0].toUpperCase(),
+                                style: TextStyle(color: cs.onPrimaryContainer, fontWeight: FontWeight.w800, fontSize: 13),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          groupName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w800, fontSize: 16),
+                        ),
+                      ),
+                      _HeaderActionIcon(icon: Icons.sync_rounded, onTap: _syncDetails),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Sticky balance card (appears after cover + balance card scrolled past) ──
+          if (_scrollOffset > headerHeight + balanceCardHeight)
+            Positioned(
+              top: topPadding + 52,
+              left: 0, right: 0,
+              child: AnimatedOpacity(
+                opacity: ((_scrollOffset - headerHeight - balanceCardHeight) / 40).clamp(0.0, 1.0),
+                duration: const Duration(milliseconds: 80),
+                child: Container(
+                  color: cs.surface,
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: balanceValue.abs() < 0.01 && expenses.isNotEmpty
+                            ? Row(
+                                children: [
+                                  const Icon(Icons.check_circle_rounded, color: Color(0xFF4F7D6A), size: 16),
+                                  const SizedBox(width: 6),
+                                  const Text('All Settled ✓', style: TextStyle(color: Color(0xFF4F7D6A), fontWeight: FontWeight.w800)),
+                                ],
+                              )
+                            : Text(
+                                summaryText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                  color: balanceValue.abs() < 0.01
+                                      ? cs.onSurface.withValues(alpha: 0.4)
+                                      : balanceValue >= 0
+                                          ? const Color(0xFF146B2E)
+                                          : const Color(0xFFCC7A29),
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        height: 32,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE8AC73),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: () => _openSettleUpSheet(
+                            members: members, expenses: expenses,
+                            settlements: settlements, currentUserId: currentUserId, currency: currency,
+                          ),
+                          child: const Text('Settle Up', style: TextStyle(color: Colors.white, fontSize: 12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
