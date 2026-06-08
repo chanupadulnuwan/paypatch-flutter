@@ -326,19 +326,28 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           itemCount: friendsProv.friends.length,
                           itemBuilder: (context, index) {
                             final f = friendsProv.friends[index];
-                            final String name = f['name'] ?? 'Friend';
-                            final double bal = (f['balance'] ?? 0.0).toDouble();
-                            final String status = f['status'] ?? 'settled';
+                            final String name       = f['name'] ?? 'Friend';
+                            final String? username  = f['username'] as String?;
+                            final double bal        = (f['balance'] ?? 0.0).toDouble();
+                            final String status     = f['status'] ?? 'settled';
+                            final String currency   = f['currency'] as String? ?? 'LKR';
+                            final String? photoUrl  = f['profile_photo_url'] as String?;
 
-                            String subtitle = 'Settled';
+                            String subtitle = 'Settled up';
                             Color balColor = Colors.grey;
                             if (status == 'owes_you') {
-                              subtitle = 'Owes you \$${bal.toStringAsFixed(2)}';
-                              balColor = const Color.fromARGB(255, 10, 95, 13);
+                              subtitle = 'Owes you $currency ${bal.toStringAsFixed(2)}';
+                              balColor = const Color(0xFF2E7D32);
                             } else if (status == 'you_owe') {
-                              subtitle = 'You owe \$${bal.abs().toStringAsFixed(2)}';
-                              balColor = const Color.fromARGB(255, 244, 120, 54);
+                              subtitle = 'You owe $currency ${bal.abs().toStringAsFixed(2)}';
+                              balColor = const Color(0xFFCC7A29);
                             }
+
+                            final String trailingText = bal.abs() < 0.01
+                                ? 'Settled'
+                                : (bal > 0
+                                    ? '+$currency ${bal.toStringAsFixed(2)}'
+                                    : '-$currency ${bal.abs().toStringAsFixed(2)}');
 
                             return Card(
                               elevation: 0,
@@ -352,27 +361,39 @@ class _FriendsScreenState extends State<FriendsScreen> {
                               child: ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: isDark ? cs.primary.withValues(alpha: 0.25) : cs.outlineVariant,
-                                  child: const Icon(Icons.person, color: Colors.white),
+                                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
+                                  child: photoUrl == null
+                                      ? Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                                        )
+                                      : null,
                                 ),
-                                title: Text(
-                                  name,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                title: Row(
+                                  children: [
+                                    Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                    if (username != null && username.isNotEmpty) ...[
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '@$username',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: cs.primary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
                                 subtitle: Text(subtitle),
                                 trailing: Text(
-                                  bal == 0
-                                      ? 'Settled'
-                                      : (bal > 0 ? '+\$${bal.toStringAsFixed(2)}' : '-\$${bal.abs().toStringAsFixed(2)}'),
+                                  trailingText,
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: isDark ? (bal > 0 ? cs.primary : cs.secondary) : balColor,
+                                    fontSize: 12,
                                   ),
                                 ),
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('$name details (Q&A Demo)')),
-                                  );
-                                },
                               ),
                             );
                           },

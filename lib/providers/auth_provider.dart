@@ -52,6 +52,38 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final response = await _client.post(
+        Uri.parse('$_baseUrl/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $_token',
+        },
+        body: json.encode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'new_password_confirmation': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 10));
+      if (_isSuccess(response.statusCode)) return true;
+      final msg = _extractErrorMessage(response);
+      throw Exception(msg ?? 'Failed to change password.');
+    } on Exception {
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     notifyListeners();
