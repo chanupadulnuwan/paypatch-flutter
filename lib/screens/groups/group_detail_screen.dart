@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/group.dart';
 import '../../providers/connectivity_provider.dart';
@@ -513,10 +514,30 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                                             .toString()
                                             .isNotEmpty
                                     ? () => _showImageDialog(
-                                          expense['receipt_image_url']
-                                              .toString(),
+                                          expense['receipt_image_url'].toString(),
                                         )
                                     : null,
+                            onTap: () {
+                              showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                showDragHandle: true,
+                                backgroundColor: Theme.of(context).colorScheme.surface,
+                                builder: (_) => _ExpenseDetailSheet(
+                                  expense: expense,
+                                  currency: currency,
+                                  members: members,
+                                  onDelete: expense['can_delete'] == true
+                                      ? () => _confirmDeleteExpense(expense)
+                                      : null,
+                                  onOpenReceipt:
+                                      expense['receipt_image_url'] != null &&
+                                              expense['receipt_image_url'].toString().isNotEmpty
+                                          ? () => _showImageDialog(expense['receipt_image_url'].toString())
+                                          : null,
+                                ),
+                              );
+                            },
                           ),
                         ),
                       )
@@ -764,6 +785,7 @@ class _ExpenseCard extends StatelessWidget {
     required this.usdToLkrRate,
     required this.onDelete,
     required this.onOpenReceipt,
+    required this.onTap,
   });
 
   final Map<String, dynamic> expense;
@@ -771,6 +793,13 @@ class _ExpenseCard extends StatelessWidget {
   final double? usdToLkrRate;
   final VoidCallback? onDelete;
   final VoidCallback? onOpenReceipt;
+  final VoidCallback onTap;
+
+  // Strip embedded "(at lat, lon)" suffix from old expense titles
+  String get _cleanTitle {
+    final raw = expense['title']?.toString() ?? 'Expense';
+    return raw.replaceAll(RegExp(r'\s*\(at\s+[-\d.]+,\s*[-\d.]+\)$'), '').trim();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -778,95 +807,342 @@ class _ExpenseCard extends StatelessWidget {
     final cs = theme.colorScheme;
     final amount = (expense['amount'] as num?)?.toDouble() ?? 0;
     final amountText = formatCurrencyAmount(currency, amount);
-    final lkrApprox = convertUsdToLkr(amount, usdToLkrRate, currency);
+    final hasLocation = (expense['location'] as String?)?.isNotEmpty == true ||
+        RegExp(r'\(at\s+[-\d.]+,\s*[-\d.]+\)').hasMatch(expense['title']?.toString() ?? '');
+    final hasReceipt = (expense['receipt_image_url'] as String?)?.isNotEmpty == true;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.brightness == Brightness.dark
-            ? cs.surfaceContainerHigh
-            : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: cs.primary.withValues(alpha: 0.14),
-            child: Icon(Icons.receipt_long_rounded, color: cs.primary),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.brightness == Brightness.dark
+              ? cs.surfaceContainerHigh
+              : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: cs.outlineVariant),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: cs.primary.withValues(alpha: 0.14),
+              child: Icon(Icons.receipt_long_rounded, color: cs.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _cleanTitle,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Paid by ${expense['paid_by_name'] ?? 'User'}',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: cs.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                  if (hasLocation || hasReceipt) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        if (hasLocation) ...[
+                          Icon(Icons.location_on_outlined, size: 13, color: cs.primary),
+                          const SizedBox(width: 3),
+                          Text('Location', style: TextStyle(fontSize: 11, color: cs.primary)),
+                          const SizedBox(width: 10),
+                        ],
+                        if (hasReceipt) ...[
+                          Icon(Icons.receipt_outlined, size: 13, color: cs.secondary),
+                          const SizedBox(width: 3),
+                          Text('Receipt', style: TextStyle(fontSize: 11, color: cs.secondary)),
+                        ],
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  expense['title']?.toString() ?? 'Expense',
+                  amountText,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
+                    color: cs.primary,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Paid by ${expense['paid_by_name'] ?? 'User'}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: cs.onSurface.withValues(alpha: 0.72),
+                if (onDelete != null) ...[
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: onDelete,
+                    child: Icon(Icons.delete_outline_rounded, color: cs.error, size: 20),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Added by ${expense['created_by_name'] ?? 'User'}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurface.withValues(alpha: 0.62),
-                  ),
-                ),
-                if (lkrApprox != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Approx. Rs. ${lkrApprox.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurface.withValues(alpha: 0.62),
-                      ),
-                    ),
-                  ),
+                ],
               ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExpenseDetailSheet extends StatelessWidget {
+  const _ExpenseDetailSheet({
+    required this.expense,
+    required this.currency,
+    required this.members,
+    required this.onDelete,
+    required this.onOpenReceipt,
+  });
+
+  final Map<String, dynamic> expense;
+  final String currency;
+  final List<Map<String, dynamic>> members;
+  final VoidCallback? onDelete;
+  final VoidCallback? onOpenReceipt;
+
+  String get _cleanTitle {
+    final raw = expense['title']?.toString() ?? 'Expense';
+    return raw.replaceAll(RegExp(r'\s*\(at\s+[-\d.]+,\s*[-\d.]+\)$'), '').trim();
+  }
+
+  // Extract lat,lon either from dedicated field or from embedded title
+  String? get _locationCoords {
+    final loc = expense['location'] as String?;
+    if (loc != null && loc.isNotEmpty) return loc;
+    final match = RegExp(r'\(at\s+([-\d.]+),\s*([-\d.]+)\)').firstMatch(expense['title']?.toString() ?? '');
+    if (match != null) return '${match.group(1)},${match.group(2)}';
+    return null;
+  }
+
+  Future<void> _openInMaps(BuildContext context, String coords) async {
+    final parts = coords.split(',');
+    if (parts.length < 2) return;
+    final lat = parts[0].trim();
+    final lon = parts[1].trim();
+    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lon');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open Maps. Please install Google Maps.')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final amount = (expense['amount'] as num?)?.toDouble() ?? 0;
+    final date = (expense['created_at'] as String?)?.substring(0, 10) ?? '';
+    final splitType = expense['split_type'] as String? ?? 'equal';
+    final splitMembers = (expense['split_members'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final locationCoords = _locationCoords;
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                amountText,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: cs.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
+              // Title + amount
               Row(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (onOpenReceipt != null)
-                    IconButton(
-                      icon: const Icon(Icons.image_outlined),
-                      tooltip: 'View receipt',
-                      onPressed: onOpenReceipt,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _cleanTitle,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: cs.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formatCurrencyAmount(currency, amount),
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF146B2E),
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
                   if (onDelete != null)
                     IconButton(
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        color: cs.error,
-                      ),
-                      tooltip: 'Delete expense',
-                      onPressed: onDelete,
+                      icon: Icon(Icons.delete_outline_rounded, color: cs.error),
+                      tooltip: 'Delete',
+                      onPressed: () {
+                        Navigator.pop(context);
+                        onDelete!();
+                      },
                     ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Details rows
+              _DetailRow(icon: Icons.person_outlined, label: 'Paid by', value: expense['paid_by_name'] ?? 'User', cs: cs),
+              _DetailRow(icon: Icons.edit_outlined, label: 'Added by', value: expense['created_by_name'] ?? 'User', cs: cs),
+              if (date.isNotEmpty)
+                _DetailRow(icon: Icons.calendar_today_outlined, label: 'Date', value: date, cs: cs),
+
+              const SizedBox(height: 16),
+              Divider(color: cs.outlineVariant),
+              const SizedBox(height: 12),
+
+              // Split section
+              Row(
+                children: [
+                  Icon(Icons.people_alt_outlined, size: 18, color: cs.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    splitType == 'custom' ? 'Custom Split' : 'Split Equally',
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (splitMembers.isNotEmpty) ...[
+                ...splitMembers.map((m) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 26),
+                      Expanded(
+                        child: Text(
+                          m['name']?.toString() ?? 'User',
+                          style: TextStyle(color: cs.onSurface.withValues(alpha: 0.8)),
+                        ),
+                      ),
+                      Text(
+                        formatCurrencyAmount(currency, (m['share'] as num?)?.toDouble() ?? 0),
+                        style: TextStyle(fontWeight: FontWeight.w600, color: cs.primary),
+                      ),
+                    ],
+                  ),
+                )),
+              ] else ...[
+                Padding(
+                  padding: const EdgeInsets.only(left: 26),
+                  child: Text(
+                    splitType == 'equal' ? 'Equally among all members' : 'Custom split',
+                    style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
+                  ),
+                ),
+              ],
+
+              // Location
+              if (locationCoords != null) ...[
+                const SizedBox(height: 16),
+                Divider(color: cs.outlineVariant),
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () => _openInMaps(context, locationCoords),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: cs.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.location_on_rounded, color: cs.primary, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Location', style: TextStyle(fontWeight: FontWeight.w700)),
+                              Text(
+                                locationCoords,
+                                style: TextStyle(fontSize: 12, color: cs.onSurface.withValues(alpha: 0.6)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(Icons.open_in_new_rounded, size: 16, color: cs.primary),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
+              // Receipt
+              if (onOpenReceipt != null) ...[
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    onOpenReceipt!();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: cs.secondary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: cs.secondary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.receipt_long_outlined, color: cs.secondary, size: 20),
+                        const SizedBox(width: 10),
+                        const Expanded(child: Text('View Receipt', style: TextStyle(fontWeight: FontWeight.w700))),
+                        Icon(Icons.chevron_right, color: cs.secondary, size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({required this.icon, required this.label, required this.value, required this.cs});
+  final IconData icon;
+  final String label;
+  final String value;
+  final ColorScheme cs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: cs.onSurface.withValues(alpha: 0.5)),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 70,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: cs.onSurface.withValues(alpha: 0.55)),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -903,11 +1179,14 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
   Position? _gpsPosition;
   bool _isFetchingGps = false;
   bool _isSubmitting = false;
+  String _splitType = 'equal';
+  late Set<int> _selectedSplitMemberIds;
 
   @override
   void initState() {
     super.initState();
     _selectedPayerId = (widget.members.first['id'] as num).toInt();
+    _selectedSplitMemberIds = widget.members.map((m) => (m['id'] as num).toInt()).toSet();
   }
 
   @override
@@ -967,19 +1246,20 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
     final amount = double.tryParse(_amountController.text.trim());
 
     if (title.isEmpty || amount == null || amount <= 0 || _selectedPayerId == null) {
-      await showCustomAlert(
-        context,
-        'Please fill in a title, amount, and payer before saving.',
-      );
+      await showCustomAlert(context, 'Please fill in a title, amount, and payer before saving.');
+      return;
+    }
+
+    if (_splitType == 'custom' && _selectedSplitMemberIds.isEmpty) {
+      await showCustomAlert(context, 'Select at least one member for the custom split.');
       return;
     }
 
     setState(() => _isSubmitting = true);
 
-    String? locationName;
+    String? locationStr;
     if (_gpsPosition != null) {
-      locationName =
-          'at ${_gpsPosition!.latitude.toStringAsFixed(4)}, ${_gpsPosition!.longitude.toStringAsFixed(4)}';
+      locationStr = '${_gpsPosition!.latitude.toStringAsFixed(6)},${_gpsPosition!.longitude.toStringAsFixed(6)}';
     }
 
     final provider = Provider.of<GroupsProvider>(context, listen: false);
@@ -988,25 +1268,19 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
       title,
       amount,
       _selectedPayerId!,
-      locationName: locationName,
+      location: locationStr,
+      splitMemberIds: _splitType == 'custom' ? _selectedSplitMemberIds.toList() : null,
       localImagePath: _receiptImage?.path,
     );
 
-    if (!mounted) {
-      return;
-    }
-
+    if (!mounted) return;
     setState(() => _isSubmitting = false);
 
     if (success) {
       Navigator.pop(context, true);
       return;
     }
-
-    await showCustomAlert(
-      context,
-      provider.errorMessage ?? 'Failed to add the expense.',
-    );
+    await showCustomAlert(context, provider.errorMessage ?? 'Failed to add the expense.');
   }
 
   @override
@@ -1104,7 +1378,65 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
                         .toList(),
                     onChanged: (value) => setState(() => _selectedPayerId = value),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 12),
+                  // Split section
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text('Split', style: TextStyle(fontWeight: FontWeight.w700)),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Equally'),
+                              selected: _splitType == 'equal',
+                              onSelected: (_) => setState(() {
+                                _splitType = 'equal';
+                                _selectedSplitMemberIds = widget.members.map((m) => (m['id'] as num).toInt()).toSet();
+                              }),
+                              selectedColor: const Color(0xFF4F7D6A).withValues(alpha: 0.2),
+                            ),
+                            const SizedBox(width: 8),
+                            ChoiceChip(
+                              label: const Text('Custom'),
+                              selected: _splitType == 'custom',
+                              onSelected: (_) => setState(() => _splitType = 'custom'),
+                              selectedColor: const Color(0xFFE8AC73).withValues(alpha: 0.3),
+                            ),
+                          ],
+                        ),
+                        if (_splitType == 'custom') ...[
+                          const SizedBox(height: 10),
+                          ...widget.members.map((m) {
+                            final id = (m['id'] as num).toInt();
+                            return CheckboxListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(m['name']?.toString() ?? 'User'),
+                              value: _selectedSplitMemberIds.contains(id),
+                              activeColor: const Color(0xFFE8AC73),
+                              onChanged: (v) => setState(() {
+                                if (v == true) {
+                                  _selectedSplitMemberIds.add(id);
+                                } else {
+                                  _selectedSplitMemberIds.remove(id);
+                                }
+                              }),
+                            );
+                          }),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(

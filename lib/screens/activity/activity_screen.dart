@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../config.dart';
 import '../../models/group.dart';
+import '../../providers/activity_badge_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/groups_provider.dart';
@@ -31,6 +32,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
     await Provider.of<GroupsProvider>(context, listen: false).fetchGroups(isOnline: isOnline);
     if (isOnline) await _fetchActivityLogs();
+    if (isOnline && mounted) {
+      Provider.of<ActivityBadgeProvider>(context, listen: false).clearBadge();
+    }
   }
 
   Future<void> _fetchActivityLogs() async {

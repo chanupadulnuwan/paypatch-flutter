@@ -480,34 +480,31 @@ class GroupsProvider extends ChangeNotifier {
     String title,
     double amount,
     int paidById, {
-    String? locationName,
+    String? location,
+    List<int>? splitMemberIds,
     String? localImagePath,
   }) async {
-    if (_token == null) {
-      return false;
-    }
-
+    if (_token == null) return false;
     _isLoadingDetails = true;
     _errorMessage = null;
     notifyListeners();
 
-    var finalTitle = title;
-    if (locationName != null && locationName.isNotEmpty) {
-      finalTitle = '$title ($locationName)';
-    }
-
     try {
+      final fields = <String, String>{
+        'group_id': groupId,
+        'paid_by': paidById.toString(),
+        'title': title,
+        'amount': amount.toStringAsFixed(2),
+      };
+      if (location != null && location.isNotEmpty) fields['location'] = location;
+      if (splitMemberIds != null && splitMemberIds.isNotEmpty) {
+        fields['split_member_ids'] = json.encode(splitMemberIds);
+      }
+
       final response = await _sendMultipartRequest(
         uri: Uri.parse('$_baseUrl/expenses'),
-        fields: {
-          'group_id': groupId,
-          'paid_by': paidById.toString(),
-          'title': finalTitle,
-          'amount': amount.toStringAsFixed(2),
-        },
-        fileFields: {
-          'receipt_image': localImagePath,
-        },
+        fields: fields,
+        fileFields: {'receipt_image': localImagePath},
       );
 
       if (_isSuccessful(response.statusCode)) {
@@ -515,9 +512,7 @@ class GroupsProvider extends ChangeNotifier {
         await fetchGroups(isOnline: true);
         return true;
       }
-
-      _errorMessage =
-          _extractErrorMessage(response) ?? 'Failed to add expense.';
+      _errorMessage = _extractErrorMessage(response) ?? 'Failed to add expense.';
       return false;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '').trim();

@@ -5,6 +5,7 @@ import 'theme/theme_controller.dart';
 import 'providers/auth_provider.dart';
 import 'providers/groups_provider.dart';
 import 'providers/friends_provider.dart';
+import 'providers/activity_badge_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'providers/announcements_provider.dart';
 import 'screens/splash/splash_screen.dart';
@@ -63,6 +64,15 @@ class _PayPatchAppState extends State<PayPatchApp> {
             Provider.of<AuthProvider>(context, listen: false).token,
           ),
           update: (context, auth, previous) => FriendsProvider(auth.token),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, ActivityBadgeProvider>(
+          create: (context) => ActivityBadgeProvider(
+            Provider.of<AuthProvider>(context, listen: false).token,
+          ),
+          update: (context, auth, previous) {
+            previous?.updateToken(auth.token);
+            return previous ?? ActivityBadgeProvider(auth.token);
+          },
         ),
       ],
       child: MaterialApp(
