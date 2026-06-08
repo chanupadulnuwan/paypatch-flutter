@@ -64,35 +64,6 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         onRefresh: _syncAnnouncements,
         child: Column(
           children: [
-            // Status Indicator (Show if loaded from external url or local asset fallback)
-            Container(
-              color: prov.isLoadedFromExternal ? const Color(0xFF2E6B4F) : const Color(0xFF4A5568),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              child: Row(
-                children: [
-                  Icon(
-                    prov.isLoadedFromExternal ? Icons.cloud_done : Icons.storage,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      prov.isLoadedFromExternal
-                          ? 'Synchronized with External Server'
-                          : 'Offline Fallback — Viewing Local Resource',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             Expanded(
               child: prov.isLoading
                   ? const Center(child: CircularProgressIndicator())

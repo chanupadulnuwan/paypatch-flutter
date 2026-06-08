@@ -55,6 +55,9 @@ class PostsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String? _lastError;
+  String? get lastError => _lastError;
+
   Future<GroupPost?> createPost({
     required String groupId,
     required String audience,
@@ -62,9 +65,9 @@ class PostsProvider extends ChangeNotifier {
     String? imagePath,
   }) async {
     if (_token == null) return null;
+    _lastError = null;
     try {
-      final req = http.MultipartRequest(
-          'POST', Uri.parse('$_baseUrl/posts'))
+      final req = http.MultipartRequest('POST', Uri.parse('$_baseUrl/posts'))
         ..headers.addAll(_headers)
         ..fields['group_id'] = groupId
         ..fields['audience'] = audience;
@@ -83,7 +86,16 @@ class PostsProvider extends ChangeNotifier {
         notifyListeners();
         return post;
       }
-    } catch (_) {}
+      // Surface the server error message
+      try {
+        final body = json.decode(res.body) as Map<String, dynamic>;
+        _lastError = body['message']?.toString() ?? 'Server error ${res.statusCode}';
+      } catch (_) {
+        _lastError = 'Server error ${res.statusCode}';
+      }
+    } catch (e) {
+      _lastError = e.toString();
+    }
     return null;
   }
 

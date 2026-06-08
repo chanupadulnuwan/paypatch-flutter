@@ -26,25 +26,14 @@ class GroupsScreen extends StatefulWidget {
 }
 
 class _GroupsScreenState extends State<GroupsScreen> {
-  final ScrollController _scrollController = ScrollController();
-  double _scrollOffset = 0;
   String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(() {
-      if (mounted) setState(() => _scrollOffset = _scrollController.offset);
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncGroups();
     });
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
   }
 
   Future<void> _syncGroups() async {
@@ -145,12 +134,6 @@ class _GroupsScreenState extends State<GroupsScreen> {
         ? cs.onSurface.withValues(alpha: 0.72)
         : Colors.white.withValues(alpha: 0.82);
 
-    final topPadding = MediaQuery.of(context).padding.top;
-    const double headerHeight = 160.0;
-    const double balanceCardHeight = 180.0;
-    final double stickyOpacity = (_scrollOffset / headerHeight).clamp(0.0, 1.0);
-    final double balanceOpacity = ((_scrollOffset - headerHeight - balanceCardHeight + 40) / 40).clamp(0.0, 1.0);
-
     final filtered = groupsProvider.groups
         .where((g) => g.name.toLowerCase().contains(_searchQuery.toLowerCase()))
         .toList();
@@ -168,308 +151,190 @@ class _GroupsScreenState extends State<GroupsScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Create Group'),
           ),
-          body: Stack(
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RefreshIndicator(
-            onRefresh: _syncGroups,
-            child: ListView(
-              controller: _scrollController,
-              padding: EdgeInsets.zero,
-              children: [
-                if (!connectivity.isOnline)
-                  Container(
-                    color: const Color(0xFFCC7A29),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.wifi_off_rounded, color: Colors.white),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Offline mode: showing your cached group data.',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              // ── Fixed header (never scrolls) ──────────────────────────────
+              if (!connectivity.isOnline)
                 Container(
-                  padding: EdgeInsets.fromLTRB(18, MediaQuery.of(context).padding.top + 16, 18, 22),
-                  decoration: BoxDecoration(
-                    color: headerBg,
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(32),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  color: const Color(0xFFCC7A29),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: const Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'hello $userName!',
-                                  style: theme.textTheme.headlineSmall?.copyWith(
-                                    color: headerText,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  greeting,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: headerSubText,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => _openProfileSheet(context),
-                            icon: Icon(
-                              Icons.person_outline_rounded,
-                              color: headerText,
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () {
-                            PayPatchApp.themeControllerOf(context).toggleTheme();
-                            },
-                            icon: Icon(
-                              isDark
-                                  ? Icons.light_mode_outlined
-                                  : Icons.dark_mode_outlined,
-                              color: headerText,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Container(
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? cs.surfaceContainerHighest
-                              : Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: AppSearchBar(
-                          onChanged: (q) => setState(() => _searchQuery = q),
+                      Icon(Icons.wifi_off_rounded, color: Colors.white),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Offline mode: showing your cached group data.',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? cs.surfaceContainerHigh
-                          : const Color(0xFFE8AC73),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              Container(
+                padding: EdgeInsets.fromLTRB(18, MediaQuery.of(context).padding.top + 16, 18, 22),
+                decoration: BoxDecoration(
+                  color: headerBg,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          'Total Balance',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isDark
-                                ? cs.onSurface.withValues(alpha: 0.72)
-                                : Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          balanceText,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: isDark ? cs.onSurface : Colors.white,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if (groupsProvider.usdToLkrRate != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Text(
-                              '1 USD = Rs. ${groupsProvider.usdToLkrRate!.toStringAsFixed(2)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: isDark
-                                    ? cs.onSurface.withValues(alpha: 0.66)
-                                    : Colors.white.withValues(alpha: 0.85),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'hello $userName!',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: headerText,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              Text(
+                                greeting,
+                                style: theme.textTheme.bodyLarge?.copyWith(color: headerSubText),
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          onPressed: () => _openProfileSheet(context),
+                          icon: Icon(Icons.person_outline_rounded, color: headerText),
+                        ),
+                        IconButton(
+                          onPressed: () => PayPatchApp.themeControllerOf(context).toggleTheme(),
+                          icon: Icon(
+                            isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                            color: headerText,
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Text(
-                    'Your Groups',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (groupsProvider.isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(28),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: isTablet
-                        ? _TabletGrid(groups: filtered)
-                        : _MobileList(groups: filtered),
-                  ),
-                const SizedBox(height: 96),
-              ],
-            ),
-          ),
-
-              // Sticky compact AppBar overlay
-              if (stickyOpacity > 0)
-                Positioned(
-                  top: 0, left: 0, right: 0,
-                  child: Opacity(
-                    opacity: stickyOpacity,
-                    child: Container(
-                      color: cs.surface,
-                      padding: EdgeInsets.fromLTRB(18, topPadding + 8, 8, 8),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'PayPatch',
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: cs.onSurface,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => _openProfileSheet(context),
-                            icon: Icon(
-                              Icons.person_outline_rounded,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                        ],
+                    const SizedBox(height: 18),
+                    Container(
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? cs.surfaceContainerHighest
+                            : Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: AppSearchBar(
+                        onChanged: (q) => setState(() => _searchQuery = q),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-
-              // Sticky slim balance bar
-              if (balanceOpacity > 0)
-                Positioned(
-                  top: topPadding + 52,
-                  left: 0, right: 0,
-                  child: Opacity(
-                    opacity: balanceOpacity,
-                    child: Container(
-                      color: cs.surface,
-                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
-                      child: Text(
-                        balanceText,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                          color: normalizedBalance >= 0
-                              ? const Color(0xFF146B2E)
-                              : const Color(0xFFCC7A29),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: isDark ? cs.surfaceContainerHigh : const Color(0xFFE8AC73),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Total Balance',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isDark ? cs.onSurface.withValues(alpha: 0.72) : Colors.white,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 8),
+                      Text(
+                        balanceText,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: isDark ? cs.onSurface : Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (groupsProvider.usdToLkrRate != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(
+                            '1 USD = Rs. ${groupsProvider.usdToLkrRate!.toStringAsFixed(2)}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isDark
+                                  ? cs.onSurface.withValues(alpha: 0.66)
+                                  : Colors.white.withValues(alpha: 0.85),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Text(
+                  'Your Groups',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Only the group list scrolls ───────────────────────────────
+              if (groupsProvider.isLoading)
+                const Expanded(
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _syncGroups,
+                    child: filtered.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Center(
+                                  child: Text('No groups yet. Create one to start tracking expenses.'),
+                                ),
+                              ),
+                            ],
+                          )
+                        : isTablet
+                            ? GridView.builder(
+                                padding: const EdgeInsets.fromLTRB(18, 0, 18, 96),
+                                itemCount: filtered.length,
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: 1.5,
+                                ),
+                                itemBuilder: (context, index) => _GroupCard(group: filtered[index]),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.fromLTRB(18, 0, 18, 96),
+                                itemCount: filtered.length,
+                                itemBuilder: (context, index) => FadeSlideItem(
+                                  index: index,
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _GroupCard(group: filtered[index]),
+                                  ),
+                                ),
+                              ),
                   ),
                 ),
             ],
           ),
         );
       },
-    );
-  }
-}
-
-class _MobileList extends StatelessWidget {
-  const _MobileList({required this.groups});
-
-  final List<Group> groups;
-
-  @override
-  Widget build(BuildContext context) {
-    if (groups.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Text('No groups yet. Create one to start tracking expenses.'),
-        ),
-      );
-    }
-
-    return Column(
-      children: groups
-          .asMap()
-          .entries
-          .map(
-            (entry) => FadeSlideItem(
-              index: entry.key,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _GroupCard(group: entry.value),
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _TabletGrid extends StatelessWidget {
-  const _TabletGrid({required this.groups});
-
-  final List<Group> groups;
-
-  @override
-  Widget build(BuildContext context) {
-    if (groups.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(
-          child: Text('No groups yet. Create one to start tracking expenses.'),
-        ),
-      );
-    }
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: groups.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 14,
-        mainAxisSpacing: 14,
-        childAspectRatio: 1.5,
-      ),
-      itemBuilder: (context, index) => _GroupCard(group: groups[index]),
     );
   }
 }

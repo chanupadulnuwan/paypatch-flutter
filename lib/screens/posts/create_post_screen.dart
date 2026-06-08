@@ -95,7 +95,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       Navigator.pop(context, true);
       await showCustomAlert(context, 'Your post has been shared!', isSuccess: true);
     } else {
-      await showCustomAlert(context, 'Failed to share post. Please try again.');
+      await showCustomAlert(
+        context,
+        provider.lastError ?? 'Failed to share post. Please try again.',
+      );
     }
   }
 
