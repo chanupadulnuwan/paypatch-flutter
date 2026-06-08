@@ -233,88 +233,44 @@ class _GroupsScreenState extends State<GroupsScreen> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-                child: Center(
-                  child: Container(
-                    width: 328,
-                    height: 132,
-                    padding: const EdgeInsets.only(
-                      left: 18,
-                      right: 18,
-                      top: 18,
-                      bottom: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(
-                        color: const Color(0xFFFF8A2A),
-                        width: 1.2,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8AC73),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Total Balance',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF000000).withValues(alpha: 0.14),
-                          blurRadius: 18,
-                          offset: const Offset(0, 8),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Rs. ${normalizedBalance.abs().toStringAsFixed(2)} ${normalizedBalance >= 0 ? 'you are owed' : 'you owe'}',
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          height: 1.1,
                         ),
-                      ],
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/balance_card_bg.png'),
-                        fit: BoxFit.cover,
                       ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Total Balance',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF9A4F12),
-                          ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '1 USD = Rs. ${(groupsProvider.usdToLkrRate ?? 334.85).toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withValues(alpha: 0.85),
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              'Rs. ${normalizedBalance.abs().toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 42,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF6E2C00),
-                                height: 1.0,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              normalizedBalance >= 0 ? 'you are owed' : 'you owe',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFD95A00),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          height: 1,
-                          width: 185,
-                          color: const Color(0xFFECA75F).withValues(alpha: 0.55),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          '1 USD = Rs. ${(groupsProvider.usdToLkrRate ?? 334.85).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w400,
-                            color: Color(0xFFA86221),
-                            height: 1.0,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),

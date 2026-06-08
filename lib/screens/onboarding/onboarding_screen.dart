@@ -202,19 +202,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: SizedBox(
                 width: double.infinity,
-                height: 62,
+                height: 50,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF0B6B45),
                     foregroundColor: Colors.white,
-                    elevation: 10,
+                    elevation: 6,
                     shadowColor: const Color(0xFF0B6B45).withValues(alpha: 0.18),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(16),
                     ),
                     textStyle: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 23,
+                      fontSize: 16,
                     ),
                   ),
                   onPressed: _goNext,
@@ -268,10 +268,10 @@ class _OnboardingSlideView extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.displaySmall?.copyWith(
                   color: const Color(0xFF0B6B45),
-                  fontSize: 40,
+                  fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  height: 1.1,
-                  letterSpacing: -0.5,
+                  height: 1.15,
+                  letterSpacing: -0.3,
                 ),
               ),
             ),
@@ -286,9 +286,9 @@ class _OnboardingSlideView extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall?.copyWith(
                   color: const Color(0xFF555555),
-                  fontSize: 19,
+                  fontSize: 15,
                   fontWeight: FontWeight.w400,
-                  height: 1.45,
+                  height: 1.5,
                 ),
               ),
             ),

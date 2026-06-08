@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/xampp/htdocs/CB016173/paypatch-laravel/app/Http/Requests/**)",
+      "Read(//c/xampp/htdocs/CB016173/paypatch-laravel/**)",
+      "Bash(find C:/xampp/htdocs/CB016173/paypatch-laravel/database/migrations -name *.php)",
+      "Bash(php artisan:*)",
+      "Bash(flutter analyze:*)",
+      "Bash(ls \"C:\\\\xampp\\\\htdocs\\\\CB016173\\\\paypatch-laravel\\\\database\\\\migrations\"\" | grep -E \"user)",
+      "Bash(profile)",
+      "Bash(phone)",
+      "Bash(username)",
+      "Bash(flutter pub:*)",
+      "Bash(grep -E \"\\\\.\\(pdf|docx|doc|txt|md\\)$\")",
+      "Bash(find C:Users -maxdepth 3 -type f \\\\\\(-iname *assignment* -o -iname *brief* -o -iname *rubric* -o -iname *specification* \\\\\\) -name *.pdf -o -name *.docx)",
+      "Bash(ls -la \"D:\\\\flutter projects\\\\paypatch\"\" 2>/dev/null | grep -E \".pdf)",
+      "Bash(.docx)",
+      "Bash(.doc \")",
+      "Bash(powershell -Command \":*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(\"C:/Program Files/Android/Android Studio/jbr/bin/keytool.exe\" -list -v -keystore \"C:/Users/chanu/.android/debug.keystore\" -alias androiddebugkey -storepass android -keypass android)",
+      "Bash(dart analyze:*)",
+      "Bash(dart run:*)"
+    ]
+  }
+}

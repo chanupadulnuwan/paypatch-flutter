@@ -34,14 +34,14 @@ Future<void> showCustomAlert(
                 ),
               ],
             ),
-            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Circle icon with halo
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 62,
+                  height: 62,
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
@@ -50,33 +50,33 @@ Future<void> showCustomAlert(
                       width: 2,
                     ),
                   ),
-                  child: Icon(iconData, color: accentColor, size: 38),
+                  child: Icon(iconData, color: accentColor, size: 30),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 14),
 
                 // Title
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 20,
+                    fontSize: 17,
                     color: isDark ? cs.onSurface : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // Message
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurface.withValues(alpha: 0.62),
-                    height: 1.4,
-                    fontSize: 14,
+                    height: 1.45,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
 
                 // Full-width button
                 SizedBox(
@@ -85,12 +85,12 @@ Future<void> showCustomAlert(
                     style: FilledButton.styleFrom(
                       backgroundColor: accentColor,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       textStyle: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -213,14 +213,14 @@ Future<bool> showConfirmationDialog(
                 ),
               ],
             ),
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Icon circle
                 Container(
-                  width: 70,
-                  height: 70,
+                  width: 58,
+                  height: 58,
                   decoration: BoxDecoration(
                     color: accentColor.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
@@ -232,30 +232,30 @@ Future<bool> showConfirmationDialog(
                   child: Icon(
                     isDestructive ? Icons.delete_outline_rounded : Icons.help_outline_rounded,
                     color: accentColor,
-                    size: 32,
+                    size: 26,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 Text(
                   title,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    fontSize: 20,
+                    fontSize: 17,
                     color: isDark ? cs.onSurface : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: cs.onSurface.withValues(alpha: 0.62),
-                    height: 1.4,
-                    fontSize: 14,
+                    height: 1.45,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 Row(
                   children: [
                     Expanded(

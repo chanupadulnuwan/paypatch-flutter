@@ -823,9 +823,10 @@ class _GroupHeader extends StatelessWidget {
                         children: [
                           Text(
                             name,
-                            style: theme.textTheme.headlineMedium?.copyWith(
+                            style: theme.textTheme.titleLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
+                              fontSize: 20,
                             ),
                           ),
                           const SizedBox(height: 6),
