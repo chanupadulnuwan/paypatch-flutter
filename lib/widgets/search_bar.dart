@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 
 class AppSearchBar extends StatelessWidget {
-  const AppSearchBar({super.key});
+  final ValueChanged<String>? onChanged;
+
+  const AppSearchBar({super.key, this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return TextField(
+      onChanged: onChanged,
       decoration: InputDecoration(
-        hintText: 'Search expenses, groups, friends...',
+        hintText: 'Search groups...',
         prefixIcon: const Icon(Icons.search),
         filled: true,
         fillColor: cs.surface,

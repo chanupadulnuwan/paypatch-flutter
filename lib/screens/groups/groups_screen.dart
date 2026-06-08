@@ -26,12 +26,25 @@ class GroupsScreen extends StatefulWidget {
 }
 
 class _GroupsScreenState extends State<GroupsScreen> {
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(() {
+      if (mounted) setState(() => _scrollOffset = _scrollController.offset);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _syncGroups();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _syncGroups() async {
@@ -132,6 +145,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
         ? cs.onSurface.withValues(alpha: 0.72)
         : Colors.white.withValues(alpha: 0.82);
 
+    final topPadding = MediaQuery.of(context).padding.top;
+    const double headerHeight = 160.0;
+    const double balanceCardHeight = 180.0;
+    final double stickyOpacity = (_scrollOffset / headerHeight).clamp(0.0, 1.0);
+    final double balanceOpacity = ((_scrollOffset - headerHeight - balanceCardHeight + 40) / 40).clamp(0.0, 1.0);
+
+    final filtered = groupsProvider.groups
+        .where((g) => g.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isTablet = constraints.maxWidth >= 760;
@@ -145,9 +168,12 @@ class _GroupsScreenState extends State<GroupsScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Create Group'),
           ),
-          body: RefreshIndicator(
+          body: Stack(
+            children: [
+              RefreshIndicator(
             onRefresh: _syncGroups,
             child: ListView(
+              controller: _scrollController,
               padding: EdgeInsets.zero,
               children: [
                 if (!connectivity.isOnline)
@@ -172,7 +198,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     ),
                   ),
                 Container(
-                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 22),
+                  padding: EdgeInsets.fromLTRB(18, MediaQuery.of(context).padding.top + 16, 18, 22),
                   decoration: BoxDecoration(
                     color: headerBg,
                     borderRadius: const BorderRadius.vertical(
@@ -235,7 +261,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           borderRadius: BorderRadius.circular(24),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: const AppSearchBar(),
+                        child: AppSearchBar(
+                          onChanged: (q) => setState(() => _searchQuery = q),
+                        ),
                       ),
                     ],
                   ),
@@ -307,12 +335,73 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 18),
                     child: isTablet
-                        ? _TabletGrid(groups: groupsProvider.groups)
-                        : _MobileList(groups: groupsProvider.groups),
+                        ? _TabletGrid(groups: filtered)
+                        : _MobileList(groups: filtered),
                   ),
                 const SizedBox(height: 96),
               ],
             ),
+          ),
+
+              // Sticky compact AppBar overlay
+              if (stickyOpacity > 0)
+                Positioned(
+                  top: 0, left: 0, right: 0,
+                  child: Opacity(
+                    opacity: stickyOpacity,
+                    child: Container(
+                      color: cs.surface,
+                      padding: EdgeInsets.fromLTRB(18, topPadding + 8, 8, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'PayPatch',
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: cs.onSurface,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _openProfileSheet(context),
+                            icon: Icon(
+                              Icons.person_outline_rounded,
+                              color: cs.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Sticky slim balance bar
+              if (balanceOpacity > 0)
+                Positioned(
+                  top: topPadding + 52,
+                  left: 0, right: 0,
+                  child: Opacity(
+                    opacity: balanceOpacity,
+                    child: Container(
+                      color: cs.surface,
+                      padding: const EdgeInsets.fromLTRB(18, 6, 18, 6),
+                      child: Text(
+                        balanceText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: normalizedBalance >= 0
+                              ? const Color(0xFF146B2E)
+                              : const Color(0xFFCC7A29),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -396,10 +485,6 @@ class _GroupCard extends StatelessWidget {
     final cs = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final groupsProvider = Provider.of<GroupsProvider>(context, listen: false);
-
-    final balanceText = group.balance >= 0
-        ? 'You are owed ${formatCurrencyAmount(group.currency, group.balance)}'
-        : 'You owe ${formatCurrencyAmount(group.currency, group.balance.abs())}';
 
     final usdApprox = convertUsdToLkr(
       group.balance.abs(),
@@ -832,34 +917,5 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
         ),
       ),
     );
-  }
-}
-
-Gradient _gradientForPreset(String? preset) {
-  switch (preset) {
-    case 'sunrise':
-      return const LinearGradient(
-        colors: [Color(0xFFFF512F), Color(0xFFDD2476)],
-      );
-    case 'ocean':
-      return const LinearGradient(
-        colors: [Color(0xFF2193B0), Color(0xFF6DD5ED)],
-      );
-    case 'deepspace':
-      return const LinearGradient(
-        colors: [Color(0xFF0F2027), Color(0xFF2C5364)],
-      );
-    case 'dusk':
-      return const LinearGradient(
-        colors: [Color(0xFF2C3E50), Color(0xFFFD746C)],
-      );
-    case 'cyberpunk':
-      return const LinearGradient(
-        colors: [Color(0xFFF107A3), Color(0xFF7B2CBF)],
-      );
-    default:
-      return const LinearGradient(
-        colors: [Color(0xFF0D5B3F), Color(0xFF2B7D63)],
-      );
   }
 }

@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeController extends ChangeNotifier {
-  static const String _key = 'theme_is_dark';
-  bool _isDark = false;
+  static const String _keyOverrideSet = 'theme_user_override_set';
+  static const String _keyIsDark = 'theme_is_dark';
 
-  bool get isDark => _isDark;
+  bool? _userOverride; // null = follow system
 
-  ThemeMode get themeMode => _isDark ? ThemeMode.dark : ThemeMode.light;
+  bool get isDark =>
+      _userOverride ??
+      (WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.dark);
+
+  ThemeMode get themeMode {
+    if (_userOverride == null) return ThemeMode.system;
+    return _userOverride! ? ThemeMode.dark : ThemeMode.light;
+  }
 
   ThemeController() {
     _loadTheme();
@@ -15,29 +23,44 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getBool(_key);
-    if (saved != null) {
-      _isDark = saved;
+    final overrideSet = prefs.getBool(_keyOverrideSet) ?? false;
+    if (overrideSet) {
+      _userOverride = prefs.getBool(_keyIsDark) ?? false;
     } else {
-      // First launch: follow device system brightness
-      _isDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+      _userOverride = null;
     }
     notifyListeners();
   }
 
   Future<void> toggleTheme() async {
-    _isDark = !_isDark;
+    if (_userOverride == null) {
+      // Currently following system — flip from current effective value
+      final currentlyDark =
+          WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+              Brightness.dark;
+      _userOverride = !currentlyDark;
+    } else {
+      _userOverride = !_userOverride!;
+    }
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key, _isDark);
+    await prefs.setBool(_keyOverrideSet, true);
+    await prefs.setBool(_keyIsDark, _userOverride!);
   }
 
   Future<void> setTheme(bool dark) async {
-    if (_isDark != dark) {
-      _isDark = dark;
-      notifyListeners();
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_key, _isDark);
-    }
+    _userOverride = dark;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyOverrideSet, true);
+    await prefs.setBool(_keyIsDark, dark);
+  }
+
+  Future<void> resetToSystem() async {
+    _userOverride = null;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyOverrideSet);
+    await prefs.remove(_keyIsDark);
   }
 }

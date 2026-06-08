@@ -5,15 +5,16 @@ class AnnouncementDetailScreen extends StatelessWidget {
 
   const AnnouncementDetailScreen({super.key, required this.announcement});
 
-  Color _getPriorityColor(String? priority) {
+  Color _getPriorityColor(BuildContext context, String? priority) {
+    final cs = Theme.of(context).colorScheme;
     switch (priority?.toLowerCase()) {
       case 'high':
-        return Colors.red.shade700;
+        return const Color(0xFFCC3A3A);
       case 'medium':
-        return Colors.orange.shade700;
+        return const Color(0xFFE8AC73);
       case 'low':
       default:
-        return Colors.blueGrey;
+        return cs.onSurface.withValues(alpha: 0.5);
     }
   }
 
@@ -36,8 +37,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
       backgroundColor: pageBg,
       appBar: AppBar(
         title: const Text('Announcement Details'),
-        backgroundColor: isDark ? cs.surface : null,
-        foregroundColor: isDark ? cs.onSurface : null,
+        backgroundColor: isDark ? cs.surface : cs.primary,
+        foregroundColor: isDark ? cs.onSurface : Colors.white,
         elevation: 0,
       ),
       body: SingleChildScrollView(
@@ -58,21 +59,27 @@ class AnnouncementDetailScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _getPriorityColor(priority),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${priority.toUpperCase()} PRIORITY',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
+                    Builder(
+                      builder: (ctx) {
+                        final pColor = _getPriorityColor(ctx, priority);
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: pColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: pColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            '${priority.toUpperCase()} PRIORITY',
+                            style: TextStyle(
+                              color: pColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                     Text(
                       date,
@@ -116,9 +123,19 @@ class AnnouncementDetailScreen extends StatelessWidget {
                 // Author Info
                 Row(
                   children: [
-                    CircleAvatar(
-                      backgroundColor: cs.primary.withValues(alpha: 0.1),
-                      child: Icon(Icons.campaign, color: cs.primary),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4F7D6A).withValues(alpha: 0.14),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: const Color(0xFF4F7D6A).withValues(alpha: 0.3)),
+                      ),
+                      child: const Icon(
+                        Icons.campaign_rounded,
+                        color: Color(0xFF4F7D6A),
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Column(

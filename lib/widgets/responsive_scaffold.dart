@@ -57,7 +57,7 @@ class ResponsiveScaffold extends StatelessWidget {
       body: pages[index],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: cs.surface,
+          color: isDark ? cs.surface : Colors.white,
           border: Border(top: BorderSide(color: cs.outlineVariant, width: 1)),
         ),
         child: BottomNavigationBar(
@@ -65,7 +65,8 @@ class ResponsiveScaffold extends StatelessWidget {
           onTap: onIndexChanged,
           type: BottomNavigationBarType.fixed,
           showUnselectedLabels: true,
-          backgroundColor: cs.surface,
+          backgroundColor: isDark ? cs.surface : Colors.white,
+          elevation: 0,
           selectedItemColor: cs.primary,
           unselectedItemColor: cs.onSurface.withValues(alpha: isDark ? 0.65 : 0.6),
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700),

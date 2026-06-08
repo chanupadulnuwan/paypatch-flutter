@@ -28,15 +28,16 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         .fetchAnnouncements(isOnline: isOnline);
   }
 
-  Color _getPriorityColor(String? priority) {
+  Color _getPriorityColor(BuildContext context, String? priority) {
+    final cs = Theme.of(context).colorScheme;
     switch (priority?.toLowerCase()) {
       case 'high':
-        return Colors.red.shade700;
+        return const Color(0xFFCC3A3A);
       case 'medium':
-        return Colors.orange.shade700;
+        return const Color(0xFFE8AC73);
       case 'low':
       default:
-        return Colors.blueGrey;
+        return cs.onSurface.withValues(alpha: 0.5);
     }
   }
 
@@ -55,8 +56,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       backgroundColor: pageBg,
       appBar: AppBar(
         title: const Text('System Announcements'),
-        backgroundColor: isDark ? cs.surface : null,
-        foregroundColor: isDark ? cs.onSurface : null,
+        backgroundColor: isDark ? cs.surface : cs.primary,
+        foregroundColor: isDark ? cs.onSurface : Colors.white,
         elevation: 0,
       ),
       body: RefreshIndicator(
@@ -65,7 +66,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           children: [
             // Status Indicator (Show if loaded from external url or local asset fallback)
             Container(
-              color: prov.isLoadedFromExternal ? Colors.green.shade800 : Colors.blueGrey.shade800,
+              color: prov.isLoadedFromExternal ? const Color(0xFF2E6B4F) : const Color(0xFF4A5568),
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
               child: Row(
@@ -140,20 +141,26 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                         ),
                                       ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: _getPriorityColor(priority),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        priority.toUpperCase(),
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                    Builder(
+                                      builder: (ctx) {
+                                        final pColor = _getPriorityColor(ctx, priority);
+                                        return Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: pColor.withValues(alpha: 0.12),
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: pColor.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Text(
+                                            priority.toUpperCase(),
+                                            style: TextStyle(
+                                              color: pColor,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
