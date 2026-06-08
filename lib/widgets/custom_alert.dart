@@ -7,105 +7,98 @@ Future<void> showCustomAlert(
 }) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
-  final accentColor = isSuccess ? cs.primary : const Color(0xFFCC7A29);
-  final title = isSuccess ? 'Success' : 'Heads up';
-  final background = Color.alphaBlend(
-    accentColor.withValues(alpha: isSuccess ? 0.10 : 0.12),
-    cs.surface,
-  );
+  final isDark = theme.brightness == Brightness.dark;
+
+  final accentColor = isSuccess ? const Color(0xFF2E7D5E) : const Color(0xFFCC7A29);
+  final iconData = isSuccess ? Icons.check_rounded : Icons.warning_amber_rounded;
+  final title = isSuccess ? 'Successful !' : 'Heads up !';
 
   return showDialog<void>(
     context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (dialogContext) {
       return Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: DecoratedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Container(
             decoration: BoxDecoration(
-              color: background,
+              color: isDark ? cs.surfaceContainerHigh : Colors.white,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: accentColor.withValues(alpha: 0.18),
-              ),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 28,
-                  offset: const Offset(0, 18),
+                  blurRadius: 32,
+                  offset: const Offset(0, 16),
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        height: 46,
-                        width: 46,
-                        decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.14),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSuccess
-                              ? Icons.check_circle_rounded
-                              : Icons.warning_amber_rounded,
-                          color: accentColor,
-                          size: 26,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            title,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: accentColor,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    message,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
+            padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Circle icon with halo
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.35),
+                      width: 2,
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: FilledButton.tonal(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: accentColor.withValues(alpha: 0.14),
-                        foregroundColor: accentColor,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 18,
-                          vertical: 12,
-                        ),
-                        textStyle: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('Got it'),
-                    ),
+                  child: Icon(iconData, color: accentColor, size: 38),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: isDark ? cs.onSurface : Colors.black87,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 10),
+
+                // Message
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.62),
+                    height: 1.4,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // Full-width button
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('Got it'),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -121,6 +114,7 @@ void showBlockingStatusDialog(
 }) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
+  final isDark = theme.brightness == Brightness.dark;
 
   showDialog<void>(
     context: context,
@@ -131,9 +125,9 @@ void showBlockingStatusDialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 28),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
-          child: DecoratedBox(
+          child: Container(
             decoration: BoxDecoration(
-              color: cs.surface,
+              color: isDark ? cs.surfaceContainerHigh : Colors.white,
               borderRadius: BorderRadius.circular(26),
               boxShadow: [
                 BoxShadow(
@@ -143,43 +137,41 @@ void showBlockingStatusDialog(
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 28,
-                    height: 28,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
-                    ),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 3,
+                    valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          message,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurface.withValues(alpha: 0.72),
-                            height: 1.3,
-                          ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: cs.onSurface.withValues(alpha: 0.72),
+                          height: 1.3,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -197,73 +189,106 @@ Future<bool> showConfirmationDialog(
 }) async {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
+  final isDark = theme.brightness == Brightness.dark;
   final accentColor = isDestructive ? cs.error : cs.primary;
 
   final result = await showDialog<bool>(
     context: context,
+    barrierColor: Colors.black.withValues(alpha: 0.45),
     builder: (dialogContext) {
       return Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
-          child: DecoratedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Container(
             decoration: BoxDecoration(
-              color: cs.surface,
+              color: isDark ? cs.surfaceContainerHigh : Colors.white,
               borderRadius: BorderRadius.circular(28),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 26,
-                  offset: const Offset(0, 18),
+                  blurRadius: 32,
+                  offset: const Offset(0, 16),
                 ),
               ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: accentColor,
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon circle
+                Container(
+                  width: 70,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.35),
+                      width: 2,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    message,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: cs.onSurface,
-                      height: 1.35,
-                    ),
+                  child: Icon(
+                    isDestructive ? Icons.delete_outline_rounded : Icons.help_outline_rounded,
+                    color: accentColor,
+                    size: 32,
                   ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(dialogContext, false),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: accentColor,
-                            foregroundColor: Colors.white,
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    color: isDark ? cs.onSurface : Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurface.withValues(alpha: 0.62),
+                    height: 1.4,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          onPressed: () => Navigator.pop(dialogContext, true),
-                          child: Text(confirmLabel),
                         ),
+                        onPressed: () => Navigator.pop(dialogContext, false),
+                        child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w700)),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: accentColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        onPressed: () => Navigator.pop(dialogContext, true),
+                        child: Text(confirmLabel),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

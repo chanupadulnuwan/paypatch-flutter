@@ -111,7 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               subtitle: const Text('Toggle between light and dark modes'),
               value: themeCtrl.isDark,
               onChanged: (bool val) {
-                themeCtrl.setTheme(val);
+                themeCtrl.toggleTheme();
               },
             ),
           ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../providers/connectivity_provider.dart';
 import '../../providers/posts_provider.dart';
 import '../../widgets/custom_alert.dart';
 
@@ -73,6 +74,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _share() async {
+    final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
+    if (!isOnline) {
+      await showCustomAlert(context, 'You are offline. Connect to the internet to share a post.');
+      return;
+    }
     if (_captionCtrl.text.trim().isEmpty && _imagePath == null) {
       await showCustomAlert(context, 'Add a photo or caption to share a post.');
       return;

@@ -122,7 +122,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final isLastSlide = _currentIndex == _slides.length - 1;
 
     return Scaffold(
@@ -130,8 +129,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       body: SafeArea(
         child: Column(
           children: [
+            const SizedBox(height: 44),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 12, 22, 4),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Row(
                 children: [
                   const _PayPatchWordmark(),
@@ -144,18 +144,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                             key: const ValueKey('skip-onboarding'),
                             onPressed: _finishOnboarding,
                             style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF0C6A48),
-                              textStyle: theme.textTheme.titleMedium?.copyWith(
-                                fontSize: 20,
+                              foregroundColor: const Color(0xFF0B6B45),
+                              padding: EdgeInsets.zero,
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: const Text(
+                              'Skip',
+                              style: TextStyle(
+                                fontSize: 18,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            child: const Text('Skip'),
                           ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 80),
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
@@ -184,31 +190,31 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 },
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 30),
             const _SwipeHint(),
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
             _PageIndicatorRow(
               count: _slides.length,
               currentIndex: _currentIndex,
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 32),
             Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 20),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
               child: SizedBox(
                 width: double.infinity,
-                height: 68,
+                height: 62,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0C6A48),
+                    backgroundColor: const Color(0xFF0B6B45),
                     foregroundColor: Colors.white,
                     elevation: 10,
-                    shadowColor: const Color(0xFF0C6A48).withValues(alpha: 0.18),
+                    shadowColor: const Color(0xFF0B6B45).withValues(alpha: 0.18),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    textStyle: theme.textTheme.headlineSmall?.copyWith(
+                    textStyle: const TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 26,
+                      fontSize: 23,
                     ),
                   ),
                   onPressed: _goNext,
@@ -216,6 +222,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 ),
               ),
             ),
+            const SizedBox(height: 28),
           ],
         ),
       ),
@@ -249,10 +256,9 @@ class _OnboardingSlideView extends StatelessWidget {
     final tilt = pageOffset * 0.045;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
-          const SizedBox(height: 16),
           Transform.translate(
             offset: Offset(titleShift, 0),
             child: Opacity(
@@ -261,16 +267,16 @@ class _OnboardingSlideView extends StatelessWidget {
                 slide.title,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.displaySmall?.copyWith(
-                  color: const Color(0xFF0C6A48),
-                  fontSize: 42,
-                  height: 1.02,
+                  color: const Color(0xFF0B6B45),
+                  fontSize: 40,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: -1.3,
+                  height: 1.1,
+                  letterSpacing: -0.5,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           Transform.translate(
             offset: Offset(subtitleShift, 0),
             child: Opacity(
@@ -279,21 +285,21 @@ class _OnboardingSlideView extends StatelessWidget {
                 slide.subtitle,
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall?.copyWith(
-                  color: const Color(0xFF5A5E66),
-                  fontSize: 20,
-                  height: 1.48,
+                  color: const Color(0xFF555555),
+                  fontSize: 19,
                   fontWeight: FontWeight.w400,
+                  height: 1.45,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 40),
           Expanded(
             child: Transform.translate(
               offset: Offset(imageShift, floatDy),
               child: Opacity(
                 opacity: imageOpacity,
-                  child: Transform(
+                child: Transform(
                   alignment: Alignment.center,
                   transform: Matrix4.identity()
                     ..setEntry(3, 2, 0.001)
@@ -304,6 +310,10 @@ class _OnboardingSlideView extends StatelessWidget {
                   child: Center(
                     child: Container(
                       color: Colors.white,
+                      constraints: const BoxConstraints(
+                        maxWidth: 320,
+                        maxHeight: 290,
+                      ),
                       child: Image.asset(
                         slide.imageAsset,
                         fit: BoxFit.contain,
@@ -330,14 +340,14 @@ class _PayPatchWordmark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _PayPatchMark(size: 40),
+        const _PayPatchMark(size: 34),
         const SizedBox(width: 12),
         Text(
           'Pay Patch',
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: const Color(0xFF0B6546),
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
+                color: const Color(0xFF0B6B45),
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
                 letterSpacing: -0.5,
               ),
         ),
@@ -408,19 +418,20 @@ class _SwipeHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
             Icon(
               Icons.west_rounded,
-              color: Color(0xFF0C6A48),
-              size: 38,
+              color: Color(0xFF0B6B45),
+              size: 40,
             ),
             SizedBox(width: 8),
             Icon(
               Icons.touch_app_rounded,
-              color: Color(0xFF0C6A48),
+              color: Color(0xFF0B6B45),
               size: 40,
             ),
           ],
@@ -428,11 +439,11 @@ class _SwipeHint extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Swipe to explore',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: const Color(0xFF555861),
-                fontSize: 18,
-                fontWeight: FontWeight.w400,
-              ),
+          style: TextStyle(
+            color: const Color(0xFF555555),
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+          ),
         ),
       ],
     );
@@ -454,21 +465,24 @@ class _PageIndicatorRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(count, (index) {
         final isActive = index == currentIndex;
+        final size = isActive ? 11.0 : 10.0;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          width: isActive ? 15 : 12,
-          height: isActive ? 15 : 12,
+          margin: EdgeInsets.only(
+            left: index == 0 ? 0.0 : 12.0,
+          ),
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isActive
-                ? const Color(0xFF0C6A48)
+                ? const Color(0xFF0B6B45)
                 : const Color(0xFFD7E8DE),
             boxShadow: isActive
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF0C6A48).withValues(alpha: 0.16),
+                      color: const Color(0xFF0B6B45).withValues(alpha: 0.16),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
