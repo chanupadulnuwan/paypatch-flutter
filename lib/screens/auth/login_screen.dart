@@ -3,9 +3,11 @@ import 'package:provider/provider.dart';
 
 import '../../config.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/onboarding_prefs.dart';
 import '../../widgets/custom_alert.dart';
 import '../../widgets/google_logo.dart';
 import '../home/home_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -41,9 +43,19 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final success = await auth.login(email, password);
       if (success && mounted) {
+        final hasSeenOnboarding = await OnboardingPrefs.hasSeenForUser(
+          auth.user,
+        );
+        if (!mounted) {
+          return;
+        }
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(
+            builder: (_) => hasSeenOnboarding
+                ? const HomeScreen()
+                : const OnboardingScreen(),
+          ),
         );
       }
     } catch (e) {
@@ -70,9 +82,19 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         Navigator.pop(context);
         if (success) {
+          final hasSeenOnboarding = await OnboardingPrefs.hasSeenForUser(
+            auth.user,
+          );
+          if (!mounted) {
+            return;
+          }
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (_) => hasSeenOnboarding
+                  ? const HomeScreen()
+                  : const OnboardingScreen(),
+            ),
           );
         }
       }

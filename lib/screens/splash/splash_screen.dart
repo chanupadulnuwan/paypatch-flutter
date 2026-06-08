@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/onboarding_prefs.dart';
 import '../auth/login_screen.dart';
 import '../home/home_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -39,10 +41,19 @@ class _SplashScreenState extends State<SplashScreen>
     });
 
     // go to login or home after ~4 seconds (visible)
-    Future.delayed(const Duration(milliseconds: 4000), () {
+    Future.delayed(const Duration(milliseconds: 4000), () async {
       if (!mounted) return;
       final auth = Provider.of<AuthProvider>(context, listen: false);
-      final target = auth.isAuthenticated ? const HomeScreen() : const LoginScreen();
+      Widget target = const LoginScreen();
+      if (auth.isAuthenticated) {
+        final hasSeenOnboarding = await OnboardingPrefs.hasSeenForUser(
+          auth.user,
+        );
+        if (!mounted) return;
+        target = hasSeenOnboarding
+            ? const HomeScreen()
+            : const OnboardingScreen();
+      }
       Navigator.of(context).pushReplacement(_slowFadeRoute(target));
     });
   }
