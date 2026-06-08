@@ -2,14 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config.dart';
 
 class AuthProvider extends ChangeNotifier {
-  static const _googleDemoEmail = 'google.demo@gmail.com';
-  static const _googleDemoPassword = 'GoogleDemo123!';
+  // Replace with your Web OAuth 2.0 Client ID from Google Cloud Console / Firebase
+  // (the one that ends with .apps.googleusercontent.com)
+  static const _googleWebClientId = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
 
   static String get _baseUrl => AppConfig.baseUrl;
   static String get _webBaseUrl => AppConfig.webBaseUrl;
@@ -30,15 +32,52 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      return await login(_googleDemoEmail, _googleDemoPassword);
-    } catch (_) {
-      return register(
-        'Google Demo User',
-        _googleDemoEmail,
-        _googleDemoPassword,
-        country: 'Sri Lanka',
+      final googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: _googleWebClientId,
       );
+
+      // Force account picker to show each time
+      await googleSignIn.signOut();
+
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        // User cancelled the picker
+        return false;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Could not get Google token. Please try again.');
+      }
+
+      final response = await _client
+          .post(
+            Uri.parse('$_baseUrl/auth/google'),
+            headers: _jsonHeaders,
+            body: json.encode({'id_token': idToken}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (_isSuccess(response.statusCode)) {
+        await _storeSession(response.body);
+        return true;
+      }
+
+      throw Exception(
+        _extractErrorMessage(response) ?? 'Google sign-in failed.',
+      );
+    } on Exception {
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

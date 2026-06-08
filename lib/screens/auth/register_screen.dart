@@ -1,9 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+
+import '../../config.dart';
 import '../../providers/auth_provider.dart';
-import '../home/home_screen.dart';
-import '../../widgets/google_logo.dart';
+import '../../utils/onboarding_prefs.dart';
 import '../../widgets/custom_alert.dart';
+import '../../widgets/google_logo.dart';
+import '../home/home_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 
 const _countryOptions = [
   'United States',
@@ -108,9 +115,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 phone: phone.isEmpty ? null : phone,
               );
               if (success && mounted) {
+                final hasSeenOnboarding = await OnboardingPrefs.hasSeenForUser(
+                  auth.user,
+                );
+                if (!mounted) {
+                  return;
+                }
                 Navigator.pushAndRemoveUntil(
                   this.context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => hasSeenOnboarding
+                        ? const HomeScreen()
+                        : const OnboardingScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -139,9 +156,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (mounted) {
         Navigator.pop(context); // Close loading dialog
         if (success) {
+          final hasSeenOnboarding = await OnboardingPrefs.hasSeenForUser(
+            auth.user,
+          );
+          if (!mounted) {
+            return;
+          }
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(
+              builder: (_) => hasSeenOnboarding
+                  ? const HomeScreen()
+                  : const OnboardingScreen(),
+            ),
             (route) => false,
           );
         }
@@ -408,7 +435,15 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
   final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isVerifying = false;
+  bool _isSending = false;
   String? _error;
+  String? _sentMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _sendOtp();
+  }
 
   @override
   void dispose() {
@@ -421,7 +456,40 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
     super.dispose();
   }
 
-  void _verifyOtp() {
+  Future<void> _sendOtp() async {
+    setState(() {
+      _isSending = true;
+      _error = null;
+      _sentMessage = null;
+    });
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/otp/send'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: json.encode({'email': widget.email}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        setState(() => _sentMessage = 'Code sent to ${widget.email}');
+      } else {
+        final body = json.decode(response.body) as Map<String, dynamic>;
+        setState(() => _error = (body['message'] as String?) ?? 'Failed to send code.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Failed to send code. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  Future<void> _verifyOtp() async {
     final code = _controllers.map((c) => c.text).join();
     if (code.length < 6) {
       setState(() => _error = 'Please enter all 6 digits.');
@@ -433,17 +501,37 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
       _error = null;
     });
 
-    // Simulate OTP verification delay
-    Future.delayed(const Duration(seconds: 1), () {
-      if (code == '123456') {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/otp/verify'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: json.encode({'email': widget.email, 'otp': code}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         widget.onVerified();
       } else {
+        final body = json.decode(response.body) as Map<String, dynamic>;
         setState(() {
           _isVerifying = false;
-          _error = 'Invalid verification code. Enter 123456.';
+          _error = (body['message'] as String?) ?? 'Invalid verification code.';
         });
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isVerifying = false;
+          _error = 'Verification failed. Check your connection.';
+        });
+      }
+    }
   }
 
   @override
@@ -473,12 +561,29 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            'We sent a 6-digit verification code to ${widget.email}. Enter it below to complete your registration.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: cs.onSurface.withValues(alpha: 0.7),
+          if (_isSending)
+            Row(
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Sending code to ${widget.email}…',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurface.withValues(alpha: 0.6)),
+                ),
+              ],
+            )
+          else
+            Text(
+              _sentMessage ??
+                  'We sent a 6-digit verification code to ${widget.email}. Enter it below to complete your registration.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: _sentMessage != null ? cs.primary : cs.onSurface.withValues(alpha: 0.7),
+              ),
             ),
-          ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -529,12 +634,7 @@ class _OtpVerificationSheetState extends State<OtpVerificationSheet> {
           const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: () {
-                // Mock resend code
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Verification code resent. Enter 123456.')),
-                );
-              },
+              onPressed: (_isSending || _isVerifying) ? null : _sendOtp,
               child: const Text('Resend code'),
             ),
           ),
