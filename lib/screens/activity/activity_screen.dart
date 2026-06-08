@@ -10,6 +10,7 @@ import '../../providers/activity_badge_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/groups_provider.dart';
+import '../../screens/groups/group_detail_screen.dart';
 import '../../widgets/fade_slide_item.dart';
 
 class ActivityScreen extends StatefulWidget {
@@ -89,6 +90,29 @@ class _ActivityScreenState extends State<ActivityScreen> {
       case 'post_like':    return const Color(0xFFE8AC73);
       case 'post_comment': return const Color(0xFF4F7D6A);
       default:             return cs.primary;
+    }
+  }
+
+  void _navigateToGroup(BuildContext context, String? groupName, List<Group> groups) {
+    if (groupName == null || groupName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group not found')),
+      );
+      return;
+    }
+    final Group? matched = groups.cast<Group?>().firstWhere(
+      (g) => g?.name == groupName,
+      orElse: () => null,
+    );
+    if (matched != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => GroupDetailScreen(group: matched)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group not found')),
+      );
     }
   }
 
@@ -214,13 +238,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             ),
                           );
                         } else {
-                          // Activity log (reminder / settlement)
+                          // Activity log (reminder / settlement / post_like / post_comment)
                           final String type    = item['type'] as String? ?? 'info';
                           final String message = item['message'] as String? ?? '';
                           final String? grp    = item['group_name'] as String?;
                           final logColor       = _colorForLogType(type, cs);
 
-                          return FadeSlideItem(
+                          final bool isTappable = type == 'reminder' || type == 'settlement';
+
+                          final card = FadeSlideItem(
                             index: index,
                             child: _ActivityCard(
                               cardBg: cardBg,
@@ -243,6 +269,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               date: displayDate,
                             ),
                           );
+
+                          if (isTappable) {
+                            return GestureDetector(
+                              onTap: () => _navigateToGroup(context, grp, groupsProv.groups),
+                              child: card,
+                            );
+                          }
+                          return card;
                         }
                       },
                     ),

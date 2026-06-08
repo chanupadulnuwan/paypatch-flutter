@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -154,6 +155,29 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
         context,
         'Group deleted successfully.',
         isSuccess: true,
+      );
+    }
+  }
+
+  Future<void> _leaveGroup(String groupName) async {
+    final confirmed = await showConfirmationDialog(
+      context,
+      title: 'Leave Group?',
+      message: 'Are you sure you want to leave $groupName?',
+      confirmLabel: 'Leave',
+      isDestructive: true,
+    );
+    if (!confirmed || !mounted) return;
+
+    final provider = Provider.of<GroupsProvider>(context, listen: false);
+    final success = await provider.leaveGroup(widget.group.id);
+    if (!mounted) return;
+
+    if (success) {
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(provider.errorMessage ?? 'Failed to leave the group.')),
       );
     }
   }
@@ -338,6 +362,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final pageBackground =
         isDark ? cs.surface : Colors.white;
 
+    final coverImageUrl = groupData?['cover_image_url']?.toString() ?? widget.group.coverImageUrl;
+    final coverPreset = groupData?['cover_image_preset']?.toString() ?? widget.group.coverImagePreset;
+    final profileImageUrl = groupData?['profile_image_url']?.toString() ?? widget.group.profileImageUrl;
+
     return Scaffold(
       backgroundColor: pageBackground,
       floatingActionButton: Column(
@@ -378,203 +406,148 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _syncDetails,
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            _GroupHeader(
-              groupId: widget.group.id,
-              name: groupName,
-              currency: currency,
-              memberCount: memberCount,
-              coverImageUrl: groupData?['cover_image_url']?.toString() ??
-                  widget.group.coverImageUrl,
-              coverPreset: groupData?['cover_image_preset']?.toString() ??
-                  widget.group.coverImagePreset,
-              profileImageUrl: groupData?['profile_image_url']?.toString() ??
-                  widget.group.profileImageUrl,
-              onBack: () => Navigator.pop(context),
-              onSync: _syncDetails,
-              onMembers: () => _openMembersSheet(canEdit, currentUserId),
-              onEdit: canEdit ? () => _openEditGroupSheet(canEdit) : null,
+          slivers: [
+            // ── Collapsing Group Cover Header ──────────────────────────────
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _GroupHeaderDelegate(
+                groupId: widget.group.id,
+                name: groupName,
+                currency: currency,
+                memberCount: memberCount,
+                coverImageUrl: coverImageUrl,
+                coverPreset: coverPreset,
+                profileImageUrl: profileImageUrl,
+                canEdit: canEdit,
+                onBack: () => Navigator.pop(context),
+                onSync: _syncDetails,
+                onMembers: () => _openMembersSheet(canEdit, currentUserId),
+                onEdit: canEdit ? () => _openEditGroupSheet(canEdit) : null,
+                onLeave: !canEdit ? () => _leaveGroup(groupName) : null,
+                topPadding: MediaQuery.of(context).padding.top,
+              ),
             ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: isDark ? cs.surfaceContainerHigh : Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: cs.outlineVariant),
+            // ── Sticky Balance Card ────────────────────────────────────────
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _BalanceCardDelegate(
+                isDark: isDark,
+                cs: cs,
+                theme: theme,
+                balanceValue: balanceValue,
+                summaryText: summaryText,
+                lkrApprox: lkrApprox,
+                usdToLkrRate: usdToLkrRate,
+                expenses: expenses,
+                members: members,
+                settlements: settlements,
+                currentUserId: currentUserId,
+                currency: currency,
+                onSettleUp: () => _openSettleUpSheet(
+                  members: members,
+                  expenses: expenses,
+                  settlements: settlements,
+                  currentUserId: currentUserId,
+                  currency: currency,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (balanceValue.abs() < 0.01 && expenses.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF4F7D6A).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.check_circle_outline, color: Color(0xFF4F7D6A), size: 16),
-                            SizedBox(width: 5),
-                            Text(
-                              'All Settled ✓',
-                              style: TextStyle(
-                                color: Color(0xFF4F7D6A),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                    Text(
-                      summaryText,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: balanceValue >= 0
-                            ? const Color(0xFF146B2E)
-                            : const Color(0xFFCC7A29),
-                      ),
-                    ),
-                    if (lkrApprox != null && usdToLkrRate != null && balanceValue.abs() >= 0.01) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Approx. Rs. ${lkrApprox.toStringAsFixed(2)} at 1 USD = Rs. ${usdToLkrRate.toStringAsFixed(2)}',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: cs.onSurface.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
-                  ],
+                onBalances: () => _openBalancesSheet(
+                  members: members,
+                  expenses: expenses,
+                  settlements: settlements,
+                  currentUserId: currentUserId,
+                  currency: currency,
                 ),
               ),
             ),
-            const SizedBox(height: 14),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Settle Up',
-                      icon: Icons.handshake_outlined,
-                      onTap: () => _openSettleUpSheet(
-                        members: members,
-                        expenses: expenses,
-                        settlements: settlements,
-                        currentUserId: currentUserId,
-                        currency: currency,
-                      ),
-                    ),
+            // ── Expense List ───────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
+                child: Text(
+                  'Expenses',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Balances',
-                      icon: Icons.bar_chart_rounded,
-                      onTap: () => _openBalancesSheet(
-                        members: members,
-                        expenses: expenses,
-                        settlements: settlements,
-                        currentUserId: currentUserId,
-                        currency: currency,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Text(
-                'Expenses',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SliverToBoxAdapter(child: SizedBox(height: 12)),
             if (groupsProvider.isLoadingDetails)
-              const Padding(
-                padding: EdgeInsets.all(30),
-                child: Center(child: CircularProgressIndicator()),
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(30),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
               )
             else if (expenses.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Container(
-                  padding: const EdgeInsets.all(26),
-                  decoration: BoxDecoration(
-                    color: isDark ? cs.surfaceContainerHigh : Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: cs.outlineVariant),
-                  ),
-                  child: const Center(
-                    child: Text('No expenses recorded yet. Add one!'),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: Container(
+                    padding: const EdgeInsets.all(26),
+                    decoration: BoxDecoration(
+                      color: isDark ? cs.surfaceContainerHigh : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: const Center(
+                      child: Text('No expenses recorded yet. Add one!'),
+                    ),
                   ),
                 ),
               )
             else
-              Padding(
+              SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Column(
-                  children: expenses
-                      .map(
-                        (expense) => Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: _ExpenseCard(
-                            expense: expense,
-                            currency: currency,
-                            usdToLkrRate: usdToLkrRate,
-                            onDelete: expense['can_delete'] == true
-                                ? () => _confirmDeleteExpense(expense)
-                                : null,
-                            onOpenReceipt:
-                                expense['receipt_image_url'] != null &&
-                                        expense['receipt_image_url']
-                                            .toString()
-                                            .isNotEmpty
-                                    ? () => _showImageDialog(
-                                          expense['receipt_image_url'].toString(),
-                                        )
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final expense = expenses[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ExpenseCard(
+                          expense: expense,
+                          currency: currency,
+                          usdToLkrRate: usdToLkrRate,
+                          onDelete: expense['can_delete'] == true
+                              ? () => _confirmDeleteExpense(expense)
+                              : null,
+                          onOpenReceipt:
+                              expense['receipt_image_url'] != null &&
+                                      expense['receipt_image_url'].toString().isNotEmpty
+                                  ? () => _showImageDialog(expense['receipt_image_url'].toString())
+                                  : null,
+                          onTap: () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              showDragHandle: true,
+                              backgroundColor: Theme.of(context).colorScheme.surface,
+                              builder: (_) => _ExpenseDetailSheet(
+                                expense: expense,
+                                currency: currency,
+                                members: members,
+                                onDelete: expense['can_delete'] == true
+                                    ? () => _confirmDeleteExpense(expense)
                                     : null,
-                            onTap: () {
-                              showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                showDragHandle: true,
-                                backgroundColor: Theme.of(context).colorScheme.surface,
-                                builder: (_) => _ExpenseDetailSheet(
-                                  expense: expense,
-                                  currency: currency,
-                                  members: members,
-                                  onDelete: expense['can_delete'] == true
-                                      ? () => _confirmDeleteExpense(expense)
-                                      : null,
-                                  onOpenReceipt:
-                                      expense['receipt_image_url'] != null &&
-                                              expense['receipt_image_url'].toString().isNotEmpty
-                                          ? () => _showImageDialog(expense['receipt_image_url'].toString())
-                                          : null,
-                                ),
-                              );
-                            },
-                          ),
+                                onOpenReceipt:
+                                    expense['receipt_image_url'] != null &&
+                                            expense['receipt_image_url'].toString().isNotEmpty
+                                        ? () => _showImageDialog(expense['receipt_image_url'].toString())
+                                        : null,
+                              ),
+                            );
+                          },
                         ),
-                      )
-                      .toList(),
+                      );
+                    },
+                    childCount: expenses.length,
+                  ),
                 ),
               ),
-            const SizedBox(height: 100),
+            const SliverToBoxAdapter(child: SizedBox(height: 100)),
           ],
         ),
       ),
@@ -582,8 +555,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 }
 
-class _GroupHeader extends StatelessWidget {
-  const _GroupHeader({
+// ─── Group Header Sliver Delegate ─────────────────────────────────────────────
+class _GroupHeaderDelegate extends SliverPersistentHeaderDelegate {
+  _GroupHeaderDelegate({
     required this.groupId,
     required this.name,
     required this.currency,
@@ -591,10 +565,13 @@ class _GroupHeader extends StatelessWidget {
     required this.coverImageUrl,
     required this.coverPreset,
     required this.profileImageUrl,
+    required this.canEdit,
     required this.onBack,
     required this.onSync,
     required this.onMembers,
     required this.onEdit,
+    required this.onLeave,
+    required this.topPadding,
   });
 
   final String groupId;
@@ -604,130 +581,429 @@ class _GroupHeader extends StatelessWidget {
   final String? coverImageUrl;
   final String? coverPreset;
   final String? profileImageUrl;
+  final bool canEdit;
   final VoidCallback onBack;
   final VoidCallback onSync;
   final VoidCallback onMembers;
   final VoidCallback? onEdit;
+  final VoidCallback? onLeave;
+  final double topPadding;
+
+  static const double _maxExtent = 280.0;
+  static const double _minExtentBase = 68.0;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final topPadding = MediaQuery.of(context).padding.top;
+  double get maxExtent => _maxExtent + topPadding;
+
+  @override
+  double get minExtent => _minExtentBase + topPadding;
+
+  @override
+  bool shouldRebuild(_GroupHeaderDelegate old) =>
+      old.name != name ||
+      old.memberCount != memberCount ||
+      old.coverImageUrl != coverImageUrl ||
+      old.profileImageUrl != profileImageUrl ||
+      old.canEdit != canEdit;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final extent = maxExtent - shrinkOffset;
+    final t = ((extent - minExtent) / (_maxExtent - _minExtentBase)).clamp(0.0, 1.0);
+    final cs = Theme.of(context).colorScheme;
 
     return SizedBox(
-      height: 270,
+      height: maxExtent - shrinkOffset,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Background: gradient always present as base
-          Container(
-            decoration: BoxDecoration(gradient: _headerGradient(coverPreset)),
-          ),
-          // Cover image on top — silently falls back to gradient if URL is broken
-          if (coverImageUrl != null)
-            Image.network(
-              coverImageUrl!,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+          // Cover background (gradient) — fades out as collapsed
+          Opacity(
+            opacity: t,
+            child: Container(
+              decoration: BoxDecoration(gradient: _headerGradient(coverPreset)),
             ),
-          // Dark overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.30),
-                  Colors.black.withValues(alpha: 0.16),
+          ),
+          // Cover image — fades out as collapsed
+          if (coverImageUrl != null)
+            Opacity(
+              opacity: t,
+              child: Image.network(
+                coverImageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+              ),
+            ),
+          // Dark overlay — fades out as collapsed
+          Opacity(
+            opacity: t,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.30),
+                    Colors.black.withValues(alpha: 0.16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Solid surface color background — fades in as collapsed
+          Opacity(
+            opacity: 1.0 - t,
+            child: Container(color: cs.surface),
+          ),
+          // Content
+          Positioned(
+            left: 0,
+            right: 0,
+            top: topPadding,
+            bottom: 0,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top action row — always visible
+                  Row(
+                    children: [
+                      _HeaderActionIcon(
+                        icon: Icons.arrow_back_rounded,
+                        onTap: onBack,
+                        collapsed: t < 0.5,
+                      ),
+                      const SizedBox(width: 10),
+                      // Compact name — visible when collapsed
+                      if (t < 0.5)
+                        Expanded(
+                          child: Opacity(
+                            opacity: (0.5 - t) * 2,
+                            child: Row(
+                              children: [
+                                Hero(
+                                  tag: 'group-avatar-$groupId',
+                                  child: CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: cs.primaryContainer,
+                                    backgroundImage: profileImageUrl != null
+                                        ? NetworkImage(profileImageUrl!)
+                                        : null,
+                                    child: profileImageUrl == null
+                                        ? Text(
+                                            name.isEmpty ? 'G' : name[0].toUpperCase(),
+                                            style: TextStyle(
+                                              color: cs.onPrimaryContainer,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 14,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: cs.onSurface,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        const Spacer(),
+                      _HeaderActionIcon(
+                        icon: Icons.group_outlined,
+                        onTap: onMembers,
+                        collapsed: t < 0.5,
+                      ),
+                      const SizedBox(width: 8),
+                      if (onEdit != null) ...[
+                        _HeaderActionIcon(
+                          icon: Icons.edit_outlined,
+                          onTap: onEdit!,
+                          collapsed: t < 0.5,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (!canEdit && onLeave != null) ...[
+                        _HeaderActionIcon(
+                          icon: Icons.exit_to_app_rounded,
+                          onTap: onLeave!,
+                          collapsed: t < 0.5,
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      _HeaderActionIcon(
+                        icon: Icons.sync_rounded,
+                        onTap: onSync,
+                        collapsed: t < 0.5,
+                      ),
+                    ],
+                  ),
+                  // Expanded content — fades out when collapsing
+                  Expanded(
+                    child: Opacity(
+                      opacity: t,
+                      child: IgnorePointer(
+                        ignoring: t < 0.1,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Hero(
+                                  tag: 'group-avatar-$groupId',
+                                  child: CircleAvatar(
+                                    radius: lerpDouble(0, 34, t)!,
+                                    backgroundColor: Colors.white.withValues(alpha: 0.96),
+                                    backgroundImage: profileImageUrl != null
+                                        ? NetworkImage(profileImageUrl!)
+                                        : null,
+                                    child: profileImageUrl == null
+                                        ? Text(
+                                            name.isEmpty ? 'G' : name[0].toUpperCase(),
+                                            style: TextStyle(
+                                              color: cs.primary,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: lerpDouble(0, 24, t)!,
+                                            ),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: lerpDouble(16, 26, t)!,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          _CoverPill(
+                                            icon: Icons.people_alt_outlined,
+                                            label: '$memberCount members',
+                                          ),
+                                          const SizedBox(width: 8),
+                                          _CoverPill(
+                                            icon: Icons.monetization_on_outlined,
+                                            label: currency,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
-          // Content
-          Padding(
-            padding: EdgeInsets.fromLTRB(18, topPadding + 12, 18, 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-            Row(
-              children: [
-                _HeaderActionIcon(
-                  icon: Icons.arrow_back_rounded,
-                  onTap: onBack,
-                ),
-                const Spacer(),
-                _HeaderActionIcon(
-                  icon: Icons.group_outlined,
-                  onTap: onMembers,
-                ),
-                const SizedBox(width: 8),
-                if (onEdit != null) ...[
-                  _HeaderActionIcon(
-                    icon: Icons.edit_outlined,
-                    onTap: onEdit!,
-                  ),
-                  const SizedBox(width: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Balance Card Sliver Delegate ──────────────────────────────────────────────
+class _BalanceCardDelegate extends SliverPersistentHeaderDelegate {
+  _BalanceCardDelegate({
+    required this.isDark,
+    required this.cs,
+    required this.theme,
+    required this.balanceValue,
+    required this.summaryText,
+    required this.lkrApprox,
+    required this.usdToLkrRate,
+    required this.expenses,
+    required this.members,
+    required this.settlements,
+    required this.currentUserId,
+    required this.currency,
+    required this.onSettleUp,
+    required this.onBalances,
+  });
+
+  final bool isDark;
+  final ColorScheme cs;
+  final ThemeData theme;
+  final double balanceValue;
+  final String summaryText;
+  final double? lkrApprox;
+  final double? usdToLkrRate;
+  final List<Map<String, dynamic>> expenses;
+  final List<Map<String, dynamic>> members;
+  final List<Map<String, dynamic>> settlements;
+  final int currentUserId;
+  final String currency;
+  final VoidCallback onSettleUp;
+  final VoidCallback onBalances;
+
+  static const double _height = 162.0;
+
+  @override
+  double get maxExtent => _height;
+
+  @override
+  double get minExtent => _height;
+
+  @override
+  bool shouldRebuild(_BalanceCardDelegate old) =>
+      old.balanceValue != balanceValue ||
+      old.isDark != isDark;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final isSettled = balanceValue.abs() < 0.01;
+    return Container(
+      color: isDark ? cs.surface : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              decoration: BoxDecoration(
+                color: isDark ? cs.surfaceContainerHigh : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: cs.outlineVariant),
+                boxShadow: [
+                  if (!isDark)
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
                 ],
-                _HeaderActionIcon(
-                  icon: Icons.sync_rounded,
-                  onTap: onSync,
-                ),
-              ],
-            ),
-            const Spacer(),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Hero(
-                  tag: 'group-avatar-$groupId',
-                  child: CircleAvatar(
-                    radius: 34,
-                    backgroundColor: Colors.white.withValues(alpha: 0.96),
-                    backgroundImage: profileImageUrl != null
-                        ? NetworkImage(profileImageUrl!)
-                        : null,
-                    child: profileImageUrl == null
-                        ? Text(
-                            name.isEmpty ? 'G' : name[0].toUpperCase(),
-                            style: TextStyle(
-                              color: cs.primary,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 24,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isSettled && expenses.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF4F7D6A).withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFF4F7D6A).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_rounded, color: Color(0xFF4F7D6A), size: 18),
+                                SizedBox(width: 6),
+                                Text(
+                                  'All Settled ✓',
+                                  style: TextStyle(
+                                    color: Color(0xFF4F7D6A),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
                             ),
                           )
-                        : null,
+                        else
+                          Text(
+                            summaryText,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              color: isSettled
+                                  ? cs.onSurface.withValues(alpha: 0.4)
+                                  : balanceValue >= 0
+                                      ? const Color(0xFF146B2E)
+                                      : const Color(0xFFCC7A29),
+                            ),
+                          ),
+                        if (lkrApprox != null && usdToLkrRate != null && !isSettled) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Rs. ${lkrApprox!.toStringAsFixed(0)} approx',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(width: 10),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        name,
-                        style: theme.textTheme.headlineMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                      SizedBox(
+                        height: 36,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFE8AC73),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: onSettleUp,
+                          child: const Text('Settle Up', style: TextStyle(color: Colors.white, fontSize: 13)),
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          _CoverPill(icon: Icons.people_alt_outlined, label: '$memberCount members'),
-                          const SizedBox(width: 8),
-                          _CoverPill(icon: Icons.monetization_on_outlined, label: currency),
-                        ],
+                      SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: onBalances,
+                          child: const Text('Balances', style: TextStyle(fontSize: 12)),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -737,71 +1013,29 @@ class _HeaderActionIcon extends StatelessWidget {
   const _HeaderActionIcon({
     required this.icon,
     required this.onTap,
+    this.collapsed = false,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+  final bool collapsed;
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final iconColor = collapsed ? cs.onSurface : Colors.white;
+    final bgColor = collapsed
+        ? cs.onSurface.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.18);
     return Material(
-      color: Colors.white.withValues(alpha: 0.18),
+      color: bgColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: Icon(icon, color: Colors.white),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Material(
-      color: cs.surface,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: cs.outlineVariant),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: cs.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-              ),
-            ],
-          ),
+          child: Icon(icon, color: iconColor),
         ),
       ),
     );
@@ -2408,49 +2642,6 @@ class _EditGroupSheetState extends State<_EditGroupSheet> {
                   onPressed: _isSubmitting ? null : _deleteGroup,
                   icon: const Icon(Icons.delete_outline_rounded),
                   label: const Text('Delete Group'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Action Button ────────────────────────────────────────────────────────────
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFFE8AC73),
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
                 ),
               ),
             ],
