@@ -482,7 +482,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       Text(
                         summaryText,
                         style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w700,
                           color: balanceValue.abs() < 0.01
                               ? cs.onSurface.withValues(alpha: 0.4)
                               : balanceValue >= 0
@@ -543,7 +544,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 18),
               child: Text(
                 'Expenses',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -575,6 +579,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       expense: expense,
                       currency: currency,
                       usdToLkrRate: usdToLkrRate,
+                      isSettled: balanceValue.abs() < 0.01,
                       onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
                       onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
                           ? () => _showImageDialog(expense['receipt_image_url'].toString())
@@ -908,6 +913,7 @@ class _ExpenseCard extends StatelessWidget {
     required this.onDelete,
     required this.onOpenReceipt,
     required this.onTap,
+    this.isSettled = false,
   });
 
   final Map<String, dynamic> expense;
@@ -916,6 +922,7 @@ class _ExpenseCard extends StatelessWidget {
   final VoidCallback? onDelete;
   final VoidCallback? onOpenReceipt;
   final VoidCallback onTap;
+  final bool isSettled;
 
   // Strip embedded "(at lat, lon)" suffix from old expense titles
   String get _cleanTitle {
@@ -995,7 +1002,9 @@ class _ExpenseCard extends StatelessWidget {
                   amountText,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
-                    color: cs.primary,
+                    color: isSettled
+                        ? cs.onSurface.withValues(alpha: 0.35)
+                        : cs.primary,
                   ),
                 ),
                 if (onDelete != null) ...[
