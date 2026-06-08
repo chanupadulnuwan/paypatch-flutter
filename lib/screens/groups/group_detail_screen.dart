@@ -2570,36 +2570,61 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
   bool _isBusy = false;
 
   Map<int, double> get _balances {
-    final memberCount = widget.members.length;
-    if (memberCount <= 1) return {};
+    if (widget.members.length <= 1) return {};
     final Map<int, double> bal = {};
     for (final m in widget.members) {
       final id = (m['id'] as num).toInt();
       if (id != widget.currentUserId) bal[id] = 0.0;
     }
-    // Step 1: compute raw balance from expenses
+
+    // Step 1: compute raw balance using actual per-member shares from the API
     for (final exp in widget.expenses) {
       final paidBy = (exp['paid_by'] as num?)?.toInt() ?? 0;
-      final amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
-      final share = amount / memberCount;
-      if (paidBy == widget.currentUserId) {
-        for (final id in bal.keys) {
-          bal[id] = (bal[id] ?? 0) + share;
+      final splitMembers = (exp['split_members'] as List? ?? []);
+
+      if (splitMembers.isNotEmpty) {
+        if (paidBy == widget.currentUserId) {
+          // currentUser paid — others who have a share owe currentUser
+          for (final sm in splitMembers) {
+            final uid = (sm['user_id'] as num?)?.toInt() ?? 0;
+            final share = (sm['share'] as num?)?.toDouble() ?? 0.0;
+            if (uid != widget.currentUserId && bal.containsKey(uid)) {
+              bal[uid] = (bal[uid] ?? 0) + share;
+            }
+          }
+        } else if (bal.containsKey(paidBy)) {
+          // someone else paid — find currentUser's share, add to paidBy's credit
+          for (final sm in splitMembers) {
+            final uid = (sm['user_id'] as num?)?.toInt() ?? 0;
+            final share = (sm['share'] as num?)?.toDouble() ?? 0.0;
+            if (uid == widget.currentUserId) {
+              bal[paidBy] = (bal[paidBy] ?? 0) - share;
+            }
+          }
         }
-      } else if (bal.containsKey(paidBy)) {
-        bal[paidBy] = (bal[paidBy] ?? 0) - share;
+      } else {
+        // Fallback: equal split (no share data available)
+        final memberCount = widget.members.length;
+        final amount = (exp['amount'] as num?)?.toDouble() ?? 0.0;
+        final share = amount / memberCount;
+        if (paidBy == widget.currentUserId) {
+          for (final id in bal.keys) {
+            bal[id] = (bal[id] ?? 0) + share;
+          }
+        } else if (bal.containsKey(paidBy)) {
+          bal[paidBy] = (bal[paidBy] ?? 0) - share;
+        }
       }
     }
-    // Step 2: subtract settled amounts
+
+    // Step 2: apply settlements
     for (final s in widget.settlements) {
       final from = (s['from_user_id'] as num?)?.toInt();
       final to   = (s['to_user_id']   as num?)?.toInt();
       final amt  = (s['amount'] as num?)?.toDouble() ?? 0.0;
       if (to == widget.currentUserId && from != null && bal.containsKey(from)) {
-        // `from` paid currentUser — reduces `from`'s debt
         bal[from] = (bal[from] ?? 0) - amt;
       } else if (from == widget.currentUserId && to != null && bal.containsKey(to)) {
-        // currentUser paid `to` — reduces currentUser's debt to `to`
         bal[to] = (bal[to] ?? 0) + amt;
       }
     }
@@ -2745,38 +2770,45 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
                     final isSelected = _selectedIds.contains(memberId);
                     final isOwedByThem = bal > 0.01;
                     final isOwedByMe = bal < -0.01;
-                    return CheckboxListTile(
-                      value: isSelected,
-                      onChanged: (v) {
-                        setState(() {
-                          if (v == true) {
-                            _selectedIds.add(memberId);
-                          } else {
-                            _selectedIds.remove(memberId);
-                          }
-                        });
-                      },
-                      title: Text(
-                        _nameOf(memberId),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      subtitle: Text(
-                        isOwedByThem
-                            ? 'Owes you ${formatCurrencyAmount(widget.currency, bal)}'
-                            : isOwedByMe
-                                ? 'You owe ${formatCurrencyAmount(widget.currency, bal.abs())}'
-                                : 'All settled',
-                        style: TextStyle(
-                          color: isOwedByThem
-                              ? const Color(0xFF146B2E)
-                              : isOwedByMe
-                                  ? const Color(0xFFCC7A29)
-                                  : cs.onSurface.withValues(alpha: 0.5),
-                          fontWeight: FontWeight.w600,
+                    final isSettled = !isOwedByThem && !isOwedByMe;
+                    return Opacity(
+                      opacity: isSettled ? 0.45 : 1.0,
+                      child: CheckboxListTile(
+                        value: isSelected,
+                        onChanged: isSettled ? null : (v) {
+                          setState(() {
+                            if (v == true) {
+                              _selectedIds.add(memberId);
+                            } else {
+                              _selectedIds.remove(memberId);
+                            }
+                          });
+                        },
+                        title: Text(
+                          _nameOf(memberId),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: isSettled ? cs.onSurface.withValues(alpha: 0.5) : null,
+                          ),
                         ),
+                        subtitle: Text(
+                          isOwedByThem
+                              ? 'Owes you ${formatCurrencyAmount(widget.currency, bal)}'
+                              : isOwedByMe
+                                  ? 'You owe ${formatCurrencyAmount(widget.currency, bal.abs())}'
+                                  : 'All settled',
+                          style: TextStyle(
+                            color: isOwedByThem
+                                ? const Color(0xFF146B2E)
+                                : isOwedByMe
+                                    ? const Color(0xFFCC7A29)
+                                    : cs.onSurface.withValues(alpha: 0.45),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        activeColor: const Color(0xFFE8AC73),
+                        checkColor: Colors.white,
                       ),
-                      activeColor: const Color(0xFFE8AC73),
-                      checkColor: Colors.white,
                     );
                   }).toList(),
                 ),
