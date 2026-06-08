@@ -138,7 +138,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isTablet = constraints.maxWidth >= 760;
+        final isTablet = constraints.maxWidth >= 600;
 
         return Scaffold(
           backgroundColor: isDark ? cs.surface : Colors.white,
@@ -237,18 +237,19 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8AC73),
+                    color: isDark ? cs.surfaceContainerHigh : const Color(0xFFE8AC73),
                     borderRadius: BorderRadius.circular(22),
+                    border: isDark ? Border.all(color: cs.outlineVariant) : null,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Total Balance',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
-                          color: Colors.white,
+                          color: isDark ? cs.onSurface.withValues(alpha: 0.55) : Colors.white,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -257,10 +258,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           children: [
                             TextSpan(
                               text: 'Rs. ${normalizedBalance.abs().toStringAsFixed(2)} ',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w800,
-                                color: Colors.white,
+                                color: isDark ? cs.onSurface : Colors.white,
                                 height: 1.1,
                               ),
                             ),
@@ -270,8 +271,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 color: normalizedBalance >= 0
-                                    ? const Color(0xFF1B7A3E)
-                                    : const Color(0xFFB84A00),
+                                    ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF1B7A3E))
+                                    : (isDark ? const Color(0xFFFF8C42) : const Color(0xFFB84A00)),
                                 height: 1.1,
                               ),
                             ),
@@ -284,7 +285,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: isDark ? cs.onSurface.withValues(alpha: 0.45) : Colors.white.withValues(alpha: 0.85),
                         ),
                       ),
                     ],

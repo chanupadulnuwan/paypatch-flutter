@@ -570,40 +570,88 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                 ),
               )
             else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Column(
-                  children: expenses.map((expense) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _ExpenseCard(
-                      expense: expense,
-                      currency: currency,
-                      usdToLkrRate: usdToLkrRate,
-                      isSettled: balanceValue.abs() < 0.01,
-                      onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
-                      onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
-                          ? () => _showImageDialog(expense['receipt_image_url'].toString())
-                          : null,
-                      onTap: () {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          showDragHandle: true,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isTablet = constraints.maxWidth >= 600;
+                  if (isTablet) {
+                    // 2-column grid for tablets
+                    final rows = <Widget>[];
+                    for (int i = 0; i < expenses.length; i += 2) {
+                      final left = expenses[i];
+                      final right = i + 1 < expenses.length ? expenses[i + 1] : null;
+                      Widget buildCard(Map<String, dynamic> expense) => _ExpenseCard(
+                        expense: expense,
+                        currency: currency,
+                        usdToLkrRate: usdToLkrRate,
+                        isSettled: balanceValue.abs() < 0.01,
+                        onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
+                        onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
+                            ? () => _showImageDialog(expense['receipt_image_url'].toString()) : null,
+                        onTap: () => showModalBottomSheet<void>(
+                          context: context, isScrollControlled: true, showDragHandle: true,
                           backgroundColor: Theme.of(context).colorScheme.surface,
                           builder: (_) => _ExpenseDetailSheet(
-                            expense: expense,
-                            currency: currency,
-                            members: members,
+                            expense: expense, currency: currency, members: members,
                             onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
                             onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
-                                ? () => _showImageDialog(expense['receipt_image_url'].toString())
-                                : null,
+                                ? () => _showImageDialog(expense['receipt_image_url'].toString()) : null,
                           ),
-                        );
-                      },
+                        ),
+                      );
+                      rows.add(Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: buildCard(left)),
+                            const SizedBox(width: 12),
+                            right != null ? Expanded(child: buildCard(right)) : const Expanded(child: SizedBox()),
+                          ],
+                        ),
+                      ));
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Column(children: rows),
+                    );
+                  }
+                  // Single column for phones
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Column(
+                      children: expenses.map((expense) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ExpenseCard(
+                          expense: expense,
+                          currency: currency,
+                          usdToLkrRate: usdToLkrRate,
+                          isSettled: balanceValue.abs() < 0.01,
+                          onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
+                          onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
+                              ? () => _showImageDialog(expense['receipt_image_url'].toString())
+                              : null,
+                          onTap: () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              isScrollControlled: true,
+                              showDragHandle: true,
+                              backgroundColor: Theme.of(context).colorScheme.surface,
+                              builder: (_) => _ExpenseDetailSheet(
+                                expense: expense,
+                                currency: currency,
+                                members: members,
+                                onDelete: expense['can_delete'] == true ? () => _confirmDeleteExpense(expense) : null,
+                                onOpenReceipt: expense['receipt_image_url'] != null && expense['receipt_image_url'].toString().isNotEmpty
+                                    ? () => _showImageDialog(expense['receipt_image_url'].toString())
+                                    : null,
+                              ),
+                            );
+                          },
+                        ),
+                      )).toList(),
                     ),
-                  )).toList(),
-                ),
+                  );
+                },
               ),
             const SizedBox(height: 100),
           ],
