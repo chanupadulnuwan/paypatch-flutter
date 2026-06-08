@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/connectivity_provider.dart';
 import '../../providers/announcements_provider.dart';
+import '../../widgets/fade_slide_item.dart';
 import 'announcement_detail_screen.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
@@ -115,7 +116,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                             final String priority = ann['priority'] ?? 'low';
                             final String author = ann['author'] ?? 'Admin';
 
-                            return Card(
+                            return FadeSlideItem(
+                              index: index,
+                              child: Card(
                               elevation: 0,
                               margin: const EdgeInsets.only(bottom: 12),
                               color: cardBg,
@@ -163,7 +166,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: isDark ? cs.onSurface.withOpacity(0.8) : Colors.black87,
+                                        color: isDark ? cs.onSurface.withValues(alpha: 0.8) : Colors.black87,
                                       ),
                                     ),
                                     const SizedBox(height: 12),
@@ -171,7 +174,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                       'Published: $date • By $author',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: cs.onSurface.withOpacity(0.6),
+                                        color: cs.onSurface.withValues(alpha: 0.6),
                                       ),
                                     ),
                                   ],
@@ -185,6 +188,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                   );
                                 },
                               ),
+                            ),
                             );
                           },
                         ),

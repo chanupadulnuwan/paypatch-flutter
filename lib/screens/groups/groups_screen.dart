@@ -11,6 +11,8 @@ import '../../providers/groups_provider.dart';
 import '../../utils/currency_utils.dart';
 import '../../widgets/app_routes.dart';
 import '../../widgets/custom_alert.dart';
+import '../../widgets/fade_slide_item.dart';
+import '../../widgets/net_image.dart';
 import '../../widgets/profile_sheet.dart';
 import '../../widgets/search_bar.dart';
 import '../auth/login_screen.dart';
@@ -336,10 +338,15 @@ class _MobileList extends StatelessWidget {
 
     return Column(
       children: groups
+          .asMap()
+          .entries
           .map(
-            (group) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _GroupCard(group: group),
+            (entry) => FadeSlideItem(
+              index: entry.key,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _GroupCard(group: entry.value),
+              ),
             ),
           )
           .toList(),
@@ -429,18 +436,12 @@ class _GroupCard extends StatelessWidget {
             children: [
               Hero(
                 tag: 'group-avatar-${group.id}',
-                child: CircleAvatar(
+                child: NetImage(
+                  url: group.profileImageUrl,
                   radius: 26,
-                  backgroundColor: cs.primary.withValues(alpha: 0.12),
-                  backgroundImage: group.profileImageUrl != null
-                      ? NetworkImage(group.profileImageUrl!)
-                      : null,
-                  child: group.profileImageUrl == null
-                      ? Icon(
-                          Icons.people_alt_outlined,
-                          color: cs.primary,
-                          size: 24,
-                        )
+                  fallbackText: group.name,
+                  overlayIcon: group.profileImageUrl == null
+                      ? Icon(Icons.people_alt_outlined, color: cs.primary, size: 24)
                       : null,
                 ),
               ),
@@ -700,22 +701,10 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
                       children: _selectedMembers
                           .map(
                             (member) => InputChip(
-                              avatar: CircleAvatar(
-                                backgroundImage:
-                                    member['profile_photo_url'] != null
-                                        ? NetworkImage(
-                                            member['profile_photo_url'].toString(),
-                                          )
-                                        : null,
-                                child: member['profile_photo_url'] == null
-                                    ? Text(
-                                        member['name']
-                                                ?.toString()
-                                                .substring(0, 1)
-                                                .toUpperCase() ??
-                                            '?',
-                                      )
-                                    : null,
+                              avatar: NetImage(
+                                url: member['profile_photo_url']?.toString(),
+                                radius: 18,
+                                fallbackText: member['name']?.toString() ?? '?',
                               ),
                               label: Text(member['name']?.toString() ?? 'User'),
                               onDeleted: () {
@@ -749,21 +738,10 @@ class _CreateGroupDialogState extends State<_CreateGroupDialog> {
                         itemBuilder: (context, index) {
                           final user = _searchResults[index];
                           return ListTile(
-                            leading: CircleAvatar(
-                              backgroundImage: user['profile_photo_url'] != null
-                                  ? NetworkImage(
-                                      user['profile_photo_url'].toString(),
-                                    )
-                                  : null,
-                              child: user['profile_photo_url'] == null
-                                  ? Text(
-                                      user['name']
-                                              ?.toString()
-                                              .substring(0, 1)
-                                              .toUpperCase() ??
-                                          '?',
-                                    )
-                                  : null,
+                            leading: NetImage(
+                              url: user['profile_photo_url']?.toString(),
+                              radius: 18,
+                              fallbackText: user['name']?.toString() ?? '?',
                             ),
                             title: Text(user['name']?.toString() ?? 'User'),
                             subtitle: Text(user['email']?.toString() ?? ''),

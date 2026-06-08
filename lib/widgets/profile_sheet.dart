@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import '../widgets/custom_alert.dart';
+import 'net_image.dart';
 
 class ProfileSheet extends StatefulWidget {
   final VoidCallback onLogout;
@@ -178,16 +179,18 @@ class _ProfileSheetState extends State<ProfileSheet> {
               Center(
                 child: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 52,
-                      backgroundColor: cs.primary.withValues(alpha: 0.12),
-                      backgroundImage: _newImagePath != null
-                          ? FileImage(File(_newImagePath!))
-                          : (photoUrl != null ? NetworkImage(photoUrl) as ImageProvider : null),
-                      child: (_newImagePath == null && photoUrl == null)
-                          ? Icon(Icons.person, size: 50, color: cs.primary)
-                          : null,
-                    ),
+                    _newImagePath != null
+                        ? CircleAvatar(
+                            radius: 52,
+                            backgroundColor: cs.primary.withValues(alpha: 0.12),
+                            backgroundImage: FileImage(File(_newImagePath!)),
+                          )
+                        : NetImage(
+                            url: photoUrl,
+                            radius: 52,
+                            fallbackText: displayName,
+                            overlayIcon: photoUrl == null ? Icon(Icons.person, size: 50, color: cs.primary) : null,
+                          ),
                     if (_isEditing)
                       Positioned(
                         bottom: 0,

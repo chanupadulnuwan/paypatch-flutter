@@ -15,7 +15,13 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    _isDark = prefs.getBool(_key) ?? false;
+    final saved = prefs.getBool(_key);
+    if (saved != null) {
+      _isDark = saved;
+    } else {
+      // First launch: follow device system brightness
+      _isDark = WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark;
+    }
     notifyListeners();
   }
 

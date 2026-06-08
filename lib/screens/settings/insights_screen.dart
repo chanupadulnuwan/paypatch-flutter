@@ -5,9 +5,36 @@ import 'package:provider/provider.dart';
 
 import '../../models/group.dart';
 import '../../providers/groups_provider.dart';
+import '../../widgets/fade_slide_item.dart';
 
-class InsightsScreen extends StatelessWidget {
+class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
+
+  @override
+  State<InsightsScreen> createState() => _InsightsScreenState();
+}
+
+class _InsightsScreenState extends State<InsightsScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,21 +47,23 @@ class InsightsScreen extends StatelessWidget {
     final pageBg = isDark ? cs.surface : Colors.white;
     final cardBg = isDark ? cs.surfaceContainerHighest : Colors.white;
 
-    // --- Compute insight data ---
-    final totalSpent = groups.fold<double>(0, (s, g) => s + g.totalExpenses);
-    final youAreOwed = groups.where((g) => g.balance > 0).fold<double>(0, (s, g) => s + g.balance);
-    final youOwe = groups.where((g) => g.balance < 0).fold<double>(0, (s, g) => s + g.balance.abs());
+    final totalSpent =
+        groups.fold<double>(0, (s, g) => s + g.totalExpenses);
+    final youAreOwed = groups
+        .where((g) => g.balance > 0)
+        .fold<double>(0, (s, g) => s + g.balance);
+    final youOwe = groups
+        .where((g) => g.balance < 0)
+        .fold<double>(0, (s, g) => s + g.balance.abs());
     final totalGroups = groups.length;
     final totalMembers = groups.fold<int>(0, (s, g) => s + g.members);
 
-    // Per-group spending for bar chart (sorted desc)
     final groupSpending = groups
         .where((g) => g.totalExpenses > 0)
         .toList()
       ..sort((a, b) => b.totalExpenses.compareTo(a.totalExpenses));
     final topGroups = groupSpending.take(5).toList();
 
-    // Balance breakdown for pie chart
     final settled = groups.where((g) => g.balance.abs() < 0.01).length;
     final owedGroups = groups.where((g) => g.balance > 0).length;
     final oweGroups = groups.where((g) => g.balance < 0).length;
@@ -57,102 +86,133 @@ class InsightsScreen extends StatelessWidget {
                 ),
               ),
             )
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // --- Summary Cards Row ---
-                Row(
+          : AnimatedBuilder(
+              animation: _anim,
+              builder: (context, _) {
+                return ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    _SummaryCard(
-                      label: 'Total Spent',
-                      value: 'Rs. ${totalSpent.toStringAsFixed(0)}',
-                      icon: Icons.payments_outlined,
-                      color: const Color(0xFF4F7D6A),
-                      cardBg: cardBg,
-                      cs: cs,
+                    // Summary cards row
+                    FadeSlideItem(
+                      index: 0,
+                      child: Row(
+                        children: [
+                          _SummaryCard(
+                            label: 'Total Spent',
+                            value: 'Rs. ${totalSpent.toStringAsFixed(0)}',
+                            icon: Icons.payments_outlined,
+                            color: const Color(0xFF4F7D6A),
+                            cardBg: cardBg,
+                            cs: cs,
+                          ),
+                          const SizedBox(width: 10),
+                          _SummaryCard(
+                            label: 'You Are Owed',
+                            value: 'Rs. ${youAreOwed.toStringAsFixed(0)}',
+                            icon: Icons.arrow_downward_rounded,
+                            color: const Color(0xFF2E7D32),
+                            cardBg: cardBg,
+                            cs: cs,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    _SummaryCard(
-                      label: 'You Are Owed',
-                      value: 'Rs. ${youAreOwed.toStringAsFixed(0)}',
-                      icon: Icons.arrow_downward_rounded,
-                      color: const Color(0xFF2E7D32),
-                      cardBg: cardBg,
-                      cs: cs,
+                    const SizedBox(height: 10),
+                    FadeSlideItem(
+                      index: 1,
+                      child: Row(
+                        children: [
+                          _SummaryCard(
+                            label: 'You Owe',
+                            value: 'Rs. ${youOwe.toStringAsFixed(0)}',
+                            icon: Icons.arrow_upward_rounded,
+                            color: const Color(0xFFCC7A29),
+                            cardBg: cardBg,
+                            cs: cs,
+                          ),
+                          const SizedBox(width: 10),
+                          _SummaryCard(
+                            label: 'Groups / Members',
+                            value: '$totalGroups / $totalMembers',
+                            icon: Icons.groups_outlined,
+                            color: cs.secondary,
+                            cardBg: cardBg,
+                            cs: cs,
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(height: 20),
+
+                    // Pie chart — animated sweep
+                    FadeSlideItem(
+                      index: 2,
+                      child: _InsightCard(
+                        title: 'Balance Status',
+                        cardBg: cardBg,
+                        cs: cs,
+                        child: _BalancePieChart(
+                          settled: settled,
+                          owedGroups: owedGroups,
+                          oweGroups: oweGroups,
+                          progress: _anim.value,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Bar chart — animated bars
+                    if (topGroups.isNotEmpty) ...[
+                      FadeSlideItem(
+                        index: 3,
+                        child: _InsightCard(
+                          title: 'Top Groups by Spending',
+                          cardBg: cardBg,
+                          cs: cs,
+                          child: _GroupBarChart(
+                            groups: topGroups,
+                            progress: _anim.value,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Net balance list
+                    FadeSlideItem(
+                      index: 4,
+                      child: _InsightCard(
+                        title: 'Net Balance Overview',
+                        cardBg: cardBg,
+                        cs: cs,
+                        child: _NetBalanceList(groups: groups, cs: cs),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Avg spend
+                    FadeSlideItem(
+                      index: 5,
+                      child: _InsightCard(
+                        title: 'Average Spend per Group',
+                        cardBg: cardBg,
+                        cs: cs,
+                        child: _AvgSpendList(
+                          groups: groupSpending.take(6).toList(),
+                          cs: cs,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _SummaryCard(
-                      label: 'You Owe',
-                      value: 'Rs. ${youOwe.toStringAsFixed(0)}',
-                      icon: Icons.arrow_upward_rounded,
-                      color: const Color(0xFFCC7A29),
-                      cardBg: cardBg,
-                      cs: cs,
-                    ),
-                    const SizedBox(width: 10),
-                    _SummaryCard(
-                      label: 'Groups / Members',
-                      value: '$totalGroups / $totalMembers',
-                      icon: Icons.groups_outlined,
-                      color: cs.secondary,
-                      cardBg: cardBg,
-                      cs: cs,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // --- Balance Status Pie Chart ---
-                _InsightCard(
-                  title: 'Balance Status',
-                  cardBg: cardBg,
-                  cs: cs,
-                  child: _BalancePieChart(
-                    settled: settled,
-                    owedGroups: owedGroups,
-                    oweGroups: oweGroups,
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // --- Top Groups Bar Chart ---
-                if (topGroups.isNotEmpty) ...[
-                  _InsightCard(
-                    title: 'Top Groups by Spending',
-                    cardBg: cardBg,
-                    cs: cs,
-                    child: _GroupBarChart(groups: topGroups),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // --- Net Balance Breakdown ---
-                _InsightCard(
-                  title: 'Net Balance Overview',
-                  cardBg: cardBg,
-                  cs: cs,
-                  child: _NetBalanceList(groups: groups, cs: cs),
-                ),
-                const SizedBox(height: 16),
-
-                // --- Spending per member (avg) ---
-                _InsightCard(
-                  title: 'Average Spend per Group',
-                  cardBg: cardBg,
-                  cs: cs,
-                  child: _AvgSpendList(groups: groupSpending.take(6).toList(), cs: cs),
-                ),
-              ],
+                );
+              },
             ),
     );
   }
 }
 
-// ─── Sub-widgets ────────────────────────────────────────────────────────────
+// ─── Sub-widgets ─────────────────────────────────────────────────────────────
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
@@ -256,18 +316,20 @@ class _InsightCard extends StatelessWidget {
   }
 }
 
-// ─── Pie Chart ───────────────────────────────────────────────────────────────
+// ─── Animated Pie Chart ───────────────────────────────────────────────────────
 
 class _BalancePieChart extends StatelessWidget {
   const _BalancePieChart({
     required this.settled,
     required this.owedGroups,
     required this.oweGroups,
+    required this.progress,
   });
 
   final int settled;
   final int owedGroups;
   final int oweGroups;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -305,7 +367,9 @@ class _BalancePieChart extends StatelessWidget {
         SizedBox(
           width: 130,
           height: 130,
-          child: CustomPaint(painter: _PieChartPainter(slices)),
+          child: CustomPaint(
+            painter: _PieChartPainter(slices, progress),
+          ),
         ),
         const SizedBox(width: 20),
         Expanded(
@@ -368,8 +432,9 @@ class _PieSlice {
 }
 
 class _PieChartPainter extends CustomPainter {
-  _PieChartPainter(this.slices);
+  _PieChartPainter(this.slices, this.progress);
   final List<_PieSlice> slices;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -378,8 +443,15 @@ class _PieChartPainter extends CustomPainter {
     final radius = min(cx, cy) - 6;
     final paint = Paint()..style = PaintingStyle.fill;
     double startAngle = -pi / 2;
+
+    // Draw each slice proportional to progress (sweep animation)
+    double drawnFraction = 0;
     for (final slice in slices) {
-      final sweep = slice.value * 2 * pi;
+      final targetFraction = slice.value;
+      final available = progress - drawnFraction;
+      if (available <= 0) break;
+      final fraction = min(targetFraction, available);
+      final sweep = fraction * 2 * pi;
       paint.color = slice.color;
       canvas.drawArc(
         Rect.fromCircle(center: Offset(cx, cy), radius: radius),
@@ -389,31 +461,41 @@ class _PieChartPainter extends CustomPainter {
         paint,
       );
       startAngle += sweep;
+      drawnFraction += fraction;
     }
+
     // Donut hole
     paint.color = Colors.white.withValues(alpha: 0.85);
     canvas.drawCircle(Offset(cx, cy), radius * 0.52, paint);
   }
 
   @override
-  bool shouldRepaint(_PieChartPainter old) => false;
+  bool shouldRepaint(_PieChartPainter old) => old.progress != progress;
 }
 
-// ─── Bar Chart ───────────────────────────────────────────────────────────────
+// ─── Animated Bar Chart ───────────────────────────────────────────────────────
 
 class _GroupBarChart extends StatelessWidget {
-  const _GroupBarChart({required this.groups});
+  const _GroupBarChart({required this.groups, required this.progress});
   final List<Group> groups;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
     final maxVal = groups.map((g) => g.totalExpenses).reduce(max);
     final cs = Theme.of(context).colorScheme;
     return Column(
-      children: groups.map((g) {
+      children: groups.asMap().entries.map((entry) {
+        final idx = entry.key;
+        final g = entry.value;
+        // Stagger: each bar starts animating slightly after the previous one
+        final barProgress = ((progress - idx * 0.1) / (1 - idx * 0.1))
+            .clamp(0.0, 1.0);
         final ratio = maxVal > 0 ? g.totalExpenses / maxVal : 0.0;
+        final animatedRatio = ratio * barProgress;
+
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -431,15 +513,15 @@ class _GroupBarChart extends StatelessWidget {
                   ),
                   Text(
                     'Rs. ${g.totalExpenses.toStringAsFixed(0)}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF4F7D6A),
+                      color: Color(0xFF4F7D6A),
                       fontSize: 12,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               LayoutBuilder(
                 builder: (ctx, constraints) => Stack(
                   children: [
@@ -451,10 +533,9 @@ class _GroupBarChart extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 600),
+                    Container(
                       height: 10,
-                      width: constraints.maxWidth * ratio,
+                      width: constraints.maxWidth * animatedRatio,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF4F7D6A), Color(0xFFE8AC73)],
@@ -486,7 +567,8 @@ class _NetBalanceList extends StatelessWidget {
       return const Text('No groups yet.');
     }
     return Column(
-      children: groups.map((g) {
+      children: groups.asMap().entries.map((entry) {
+        final g = entry.value;
         final isPositive = g.balance > 0.01;
         final isNegative = g.balance < -0.01;
         final color = isPositive
@@ -565,7 +647,8 @@ class _AvgSpendList extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: const Color(0xFF4F7D6A).withValues(alpha: 0.12),
+                backgroundColor:
+                    const Color(0xFF4F7D6A).withValues(alpha: 0.12),
                 child: Text(
                   g.name.isNotEmpty ? g.name[0].toUpperCase() : '?',
                   style: const TextStyle(

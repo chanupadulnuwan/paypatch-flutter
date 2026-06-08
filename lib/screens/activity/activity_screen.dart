@@ -10,6 +10,7 @@ import '../../providers/activity_badge_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/groups_provider.dart';
+import '../../widgets/fade_slide_item.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -193,17 +194,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           final double amount   = item['amount'] as double;
                           final String currency = item['currency'] as String? ?? 'LKR';
 
-                          return _ActivityCard(
-                            cardBg: cardBg,
-                            cs: cs,
-                            icon: _iconForExpenseTitle(title),
-                            iconBg: isDark ? cs.primary.withValues(alpha: 0.25) : cs.outlineVariant,
-                            iconColor: isDark ? cs.primary : Colors.white,
-                            title: title,
-                            subtitle: '$group • Paid by $paidBy',
-                            trailing: '$currency ${amount.toStringAsFixed(2)}',
-                            trailingColor: isDark ? cs.primary : cs.secondary,
-                            date: displayDate,
+                          return FadeSlideItem(
+                            index: index,
+                            child: _ActivityCard(
+                              cardBg: cardBg,
+                              cs: cs,
+                              icon: _iconForExpenseTitle(title),
+                              iconBg: isDark ? cs.primary.withValues(alpha: 0.25) : cs.outlineVariant,
+                              iconColor: isDark ? cs.primary : Colors.white,
+                              title: title,
+                              subtitle: '$group • Paid by $paidBy',
+                              trailing: '$currency ${amount.toStringAsFixed(2)}',
+                              trailingColor: isDark ? cs.primary : cs.secondary,
+                              date: displayDate,
+                            ),
                           );
                         } else {
                           // Activity log (reminder / settlement)
@@ -212,17 +216,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           final String? grp    = item['group_name'] as String?;
                           final logColor       = _colorForLogType(type, cs);
 
-                          return _ActivityCard(
-                            cardBg: cardBg,
-                            cs: cs,
-                            icon: _iconForLogType(type),
-                            iconBg: logColor.withValues(alpha: 0.15),
-                            iconColor: logColor,
-                            title: type == 'reminder' ? 'Reminder' : type == 'settlement' ? 'Settlement' : 'Notice',
-                            subtitle: message,
-                            trailing: grp ?? '',
-                            trailingColor: logColor,
-                            date: displayDate,
+                          return FadeSlideItem(
+                            index: index,
+                            child: _ActivityCard(
+                              cardBg: cardBg,
+                              cs: cs,
+                              icon: _iconForLogType(type),
+                              iconBg: logColor.withValues(alpha: 0.15),
+                              iconColor: logColor,
+                              title: type == 'reminder' ? 'Reminder' : type == 'settlement' ? 'Settlement' : 'Notice',
+                              subtitle: message,
+                              trailing: grp ?? '',
+                              trailingColor: logColor,
+                              date: displayDate,
+                            ),
                           );
                         }
                       },

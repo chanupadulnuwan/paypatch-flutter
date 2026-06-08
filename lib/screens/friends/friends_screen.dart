@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../providers/connectivity_provider.dart';
 import '../../providers/friends_provider.dart';
 import '../../widgets/custom_alert.dart';
+import '../../widgets/fade_slide_item.dart';
+import '../../widgets/net_image.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -136,22 +138,11 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                   ? const Color(0xFF4F7D6A).withValues(alpha: 0.05)
                                   : cs.surface,
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isOnPayPatch
-                                      ? const Color(0xFF4F7D6A).withValues(alpha: 0.15)
-                                      : cs.outlineVariant.withValues(alpha: 0.4),
-                                  backgroundImage: (isOnPayPatch && matched['profile_photo_url'] != null)
-                                      ? NetworkImage(matched['profile_photo_url'].toString())
-                                      : null,
-                                  child: (isOnPayPatch && matched['profile_photo_url'] == null) || !isOnPayPatch
-                                      ? Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                          style: TextStyle(
-                                            color: isOnPayPatch ? const Color(0xFF4F7D6A) : cs.onSurface,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        )
-                                      : null,
+                                leading: NetImage(
+                                  url: isOnPayPatch ? matched['profile_photo_url']?.toString() : null,
+                                  radius: 20,
+                                  fallbackText: name,
+                                  fallbackColor: isOnPayPatch ? const Color(0xFF4F7D6A) : null,
                                 ),
                                 title: Row(
                                   children: [
@@ -282,7 +273,14 @@ class _FriendsScreenState extends State<FriendsScreen> {
       floatingActionButton: FloatingActionButton(
         backgroundColor: cs.primary,
         foregroundColor: Colors.white,
-        onPressed: () => _showContactsSheet(context),
+        onPressed: () {
+          final conn = Provider.of<ConnectivityProvider>(context, listen: false);
+          if (!conn.isOnline) {
+            showCustomAlert(context, 'You are offline. Connect to the internet to add friends.');
+            return;
+          }
+          _showContactsSheet(context);
+        },
         child: const Icon(Icons.person_add),
       ),
       body: RefreshIndicator(
@@ -349,7 +347,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                     ? '+$currency ${bal.toStringAsFixed(2)}'
                                     : '-$currency ${bal.abs().toStringAsFixed(2)}');
 
-                            return Card(
+                            return FadeSlideItem(
+                              index: index,
+                              child: Card(
                               elevation: 0,
                               margin: const EdgeInsets.only(bottom: 10),
                               color: cardBg,
@@ -359,15 +359,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 side: BorderSide(color: cs.outlineVariant),
                               ),
                               child: ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: isDark ? cs.primary.withValues(alpha: 0.25) : cs.outlineVariant,
-                                  backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-                                  child: photoUrl == null
-                                      ? Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                                        )
-                                      : null,
+                                leading: NetImage(
+                                  url: photoUrl,
+                                  radius: 20,
+                                  fallbackText: name,
                                 ),
                                 title: Row(
                                   children: [
@@ -395,6 +390,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                   ),
                                 ),
                               ),
+                            ),
                             );
                           },
                         ),

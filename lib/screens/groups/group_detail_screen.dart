@@ -1242,6 +1242,12 @@ class _AddExpenseDialogState extends State<_AddExpenseDialog> {
   }
 
   Future<void> _submit() async {
+    final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
+    if (!isOnline) {
+      await showCustomAlert(context, 'You are offline. Connect to the internet to add expenses / settle up.');
+      return;
+    }
+
     final title = _titleController.text.trim();
     final amount = double.tryParse(_amountController.text.trim());
 
@@ -2530,6 +2536,12 @@ class _SettleUpSheetState extends State<_SettleUpSheet> {
   }
 
   Future<void> _settleSelected() async {
+    final isOnline = Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
+    if (!isOnline) {
+      await showCustomAlert(context, 'You are offline. Connect to the internet to add expenses / settle up.');
+      return;
+    }
+
     final balances = _balances;
     final allSettled = balances.isEmpty || balances.values.every((v) => v.abs() < 0.01);
     if (allSettled) {
