@@ -266,10 +266,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                               ),
                             ),
                             TextSpan(
-                              text: normalizedBalance >= 0 ? 'you are owed' : 'you owe',
+                              text: normalizedBalance >= 0 ? 'You are Owed' : 'You Owe',
                               style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
                                 color: normalizedBalance >= 0
                                     ? (isDark ? const Color(0xFF4ADE80) : const Color(0xFF1B7A3E))
                                     : (isDark ? const Color(0xFFFF8C42) : const Color(0xFFB84A00)),
