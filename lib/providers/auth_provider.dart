@@ -11,7 +11,7 @@ import '../config.dart';
 class AuthProvider extends ChangeNotifier {
   // Replace with your Web OAuth 2.0 Client ID from Google Cloud Console / Firebase
   // (the one that ends with .apps.googleusercontent.com)
-  static const _googleWebClientId = 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com';
+  static const _googleWebClientId = '396692082777-re92orsp2098roc5ogj7rsi67etmc9fd.apps.googleusercontent.com';
 
   static String get _baseUrl => AppConfig.baseUrl;
   static String get _webBaseUrl => AppConfig.webBaseUrl;

@@ -258,12 +258,13 @@ class _LoginScreenState extends State<LoginScreen> {
                             TextField(
                               controller: _emailCtrl,
                               keyboardType: TextInputType.emailAddress,
+                              autocorrect: false,
                               decoration: InputDecoration(
                                 prefixIcon: Icon(
                                   Icons.email_outlined,
                                   color: cs.onSurface.withValues(alpha: 0.7),
                                 ),
-                                hintText: 'Email',
+                                hintText: 'Email or Username',
                                 filled: true,
                                 fillColor: cs.surface,
                                 border: OutlineInputBorder(

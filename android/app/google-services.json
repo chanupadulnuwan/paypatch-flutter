@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "396692082777",
+    "project_id": "paypatch-72bf2",
+    "storage_bucket": "paypatch-72bf2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:396692082777:android:3cf76fe1c133b008af6148",
+        "android_client_info": {
+          "package_name": "com.example.paypatch"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "396692082777-k88n9reobtdeal2imp7mtq4rb3qnr63u.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.paypatch",
+            "certificate_hash": "bd82e2fb04394254eaba90c44fe7579ed5b76357"
+          }
+        },
+        {
+          "client_id": "396692082777-re92orsp2098roc5ogj7rsi67etmc9fd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4qJr-mWKOFs2rqA66WRXOr5T2IAPmpKw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "396692082777-re92orsp2098roc5ogj7rsi67etmc9fd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
