@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/connectivity_provider.dart';
@@ -38,7 +39,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: source, imageQuality: 85);
     if (file != null && mounted) {
-      setState(() => _imagePath = file.path);
+      try {
+        final appDir = await getApplicationDocumentsDirectory();
+        final fileName = 'temp_share_post_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        final savedFile = await File(file.path).copy('${appDir.path}/$fileName');
+        
+        // Clean up old temporary files to prevent storage buildup
+        try {
+          final dir = Directory(appDir.path);
+          final files = dir.listSync();
+          for (final f in files) {
+            if (f is File && f.path.contains('temp_share_post_') && f.path != savedFile.path) {
+              await f.delete();
+            }
+          }
+        } catch (_) {}
+
+        setState(() => _imagePath = savedFile.path);
+      } catch (e) {
+        setState(() => _imagePath = file.path);
+      }
     }
   }
 
@@ -65,7 +85,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               ListTile(
                 leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                 title: Text('Remove Image', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                onTap: () { Navigator.pop(context); setState(() => _imagePath = null); },
+                onTap: () {
+                  Navigator.pop(context);
+                  if (_imagePath != null) {
+                    try { File(_imagePath!).delete(); } catch (_) {}
+                  }
+                  setState(() => _imagePath = null);
+                },
               ),
           ],
         ),
@@ -98,6 +124,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     setState(() => _isSharing = false);
 
     if (post != null) {
+      if (_imagePath != null) {
+        try { File(_imagePath!).delete(); } catch (_) {}
+      }
       Navigator.pop(context, true);
       await showCustomAlert(context, 'Your post has been shared!', isSuccess: true);
     } else {
@@ -189,7 +218,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           Positioned(
                             top: 8, right: 8,
                             child: GestureDetector(
-                              onTap: () => setState(() => _imagePath = null),
+                              onTap: () {
+                                if (_imagePath != null) {
+                                  try { File(_imagePath!).delete(); } catch (_) {}
+                                }
+                                setState(() => _imagePath = null);
+                              },
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
