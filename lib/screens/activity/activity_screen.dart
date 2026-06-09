@@ -9,9 +9,11 @@ import '../../models/group.dart';
 import '../../providers/activity_badge_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/connectivity_provider.dart';
+import '../../providers/friends_provider.dart';
 import '../../providers/groups_provider.dart';
 import '../../screens/groups/group_detail_screen.dart';
 import '../../widgets/fade_slide_item.dart';
+import '../../widgets/net_image.dart';
 
 class ActivityScreen extends StatefulWidget {
   const ActivityScreen({super.key});
@@ -61,6 +63,43 @@ class _ActivityScreenState extends State<ActivityScreen> {
     } catch (_) {
     } finally {
       if (mounted) setState(() => _isLoadingLogs = false);
+    }
+  }
+
+  Future<void> _respondToFriendRequest(dynamic friendshipId, bool accept) async {
+    if (friendshipId == null) return;
+    final token = Provider.of<AuthProvider>(context, listen: false).token;
+    if (token == null) return;
+
+    final endpoint = accept ? 'accept' : 'decline';
+    try {
+      await http.post(
+        Uri.parse('${AppConfig.baseUrl}/friends/$friendshipId/$endpoint'),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(accept
+            ? 'Friend request accepted!'
+            : 'Friend request declined.'),
+      ));
+      await _refresh();
+      if (accept && mounted) {
+        final isOnline =
+            Provider.of<ConnectivityProvider>(context, listen: false).isOnline;
+        Provider.of<FriendsProvider>(context, listen: false)
+            .fetchFriends(isOnline: isOnline);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Network error. Please try again.')),
+        );
+      }
     }
   }
 
@@ -238,13 +277,59 @@ class _ActivityScreenState extends State<ActivityScreen> {
                             ),
                           );
                         } else {
-                          // Activity log (reminder / settlement / post_like / post_comment)
+                          // Activity log
                           final String type    = item['type'] as String? ?? 'info';
                           final String message = item['message'] as String? ?? '';
                           final String? grp    = item['group_name'] as String?;
                           final logColor       = _colorForLogType(type, cs);
 
-                          final bool isTappable = type == 'reminder' || type == 'settlement';
+                          // Friend request card with Accept / Decline
+                          if (type == 'friend_request') {
+                            final friendshipId     = item['friendship_id'];
+                            final friendshipStatus = item['friendship_status'] as String?;
+                            final fromName         = item['from_user_name'] as String? ?? 'Someone';
+                            final fromPhoto        = item['from_user_photo'] as String?;
+                            return FadeSlideItem(
+                              index: index,
+                              child: _FriendRequestCard(
+                                cardBg: cardBg,
+                                cs: cs,
+                                fromUserName: fromName,
+                                fromUserPhoto: fromPhoto,
+                                message: message,
+                                date: displayDate,
+                                friendshipId: friendshipId,
+                                friendshipStatus: friendshipStatus,
+                                onAccept: () =>
+                                    _respondToFriendRequest(friendshipId, true),
+                                onDecline: () =>
+                                    _respondToFriendRequest(friendshipId, false),
+                              ),
+                            );
+                          }
+
+                          // Friend accepted notification
+                          if (type == 'friend_accepted') {
+                            return FadeSlideItem(
+                              index: index,
+                              child: _ActivityCard(
+                                cardBg: cardBg,
+                                cs: cs,
+                                icon: Icons.check_circle_outline,
+                                iconBg: const Color(0xFF4F7D6A)
+                                    .withValues(alpha: 0.15),
+                                iconColor: const Color(0xFF4F7D6A),
+                                title: 'Friend Request Accepted',
+                                subtitle: message,
+                                trailing: '',
+                                trailingColor: const Color(0xFF4F7D6A),
+                                date: displayDate,
+                              ),
+                            );
+                          }
+
+                          final bool isTappable =
+                              type == 'reminder' || type == 'settlement';
 
                           final card = FadeSlideItem(
                             index: index,
@@ -272,7 +357,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
                           if (isTappable) {
                             return GestureDetector(
-                              onTap: () => _navigateToGroup(context, grp, groupsProv.groups),
+                              onTap: () => _navigateToGroup(
+                                  context, grp, groupsProv.groups),
                               child: card,
                             );
                           }
@@ -345,6 +431,164 @@ class _ActivityCard extends StatelessWidget {
               )
             : null,
         isThreeLine: date.isNotEmpty,
+      ),
+    );
+  }
+}
+
+class _FriendRequestCard extends StatelessWidget {
+  const _FriendRequestCard({
+    required this.cardBg,
+    required this.cs,
+    required this.fromUserName,
+    this.fromUserPhoto,
+    required this.message,
+    required this.date,
+    this.friendshipId,
+    this.friendshipStatus,
+    required this.onAccept,
+    required this.onDecline,
+  });
+
+  final Color cardBg;
+  final ColorScheme cs;
+  final String fromUserName;
+  final String? fromUserPhoto;
+  final String message;
+  final String date;
+  final dynamic friendshipId;
+  final String? friendshipStatus;
+  final VoidCallback onAccept;
+  final VoidCallback onDecline;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPending =
+        friendshipStatus == null || friendshipStatus == 'pending';
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 10),
+      color: cardBg,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: cs.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 22,
+              backgroundColor:
+                  const Color(0xFF4F7D6A).withValues(alpha: 0.15),
+              child: fromUserPhoto != null
+                  ? NetImage(
+                      url: fromUserPhoto,
+                      radius: 22,
+                      fallbackText: fromUserName,
+                      fallbackColor: const Color(0xFF4F7D6A),
+                    )
+                  : const Icon(Icons.person_add,
+                      color: Color(0xFF4F7D6A), size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Friend Request',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    message,
+                    style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurface.withValues(alpha: 0.7)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (date.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        date,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: cs.onSurface.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                  if (isPending && friendshipId != null) ...[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF4F7D6A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 8),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: onAccept,
+                          child: const Text('Accept',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF4F7D6A),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 18, vertical: 8),
+                            minimumSize: const Size(0, 34),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            side: const BorderSide(
+                                color: Color(0xFF4F7D6A)),
+                          ),
+                          onPressed: onDecline,
+                          child: const Text('Decline',
+                              style: TextStyle(fontSize: 13)),
+                        ),
+                      ],
+                    ),
+                  ] else if (!isPending) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: friendshipStatus == 'accepted'
+                            ? const Color(0xFF4F7D6A)
+                                .withValues(alpha: 0.12)
+                            : Colors.grey.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        friendshipStatus == 'accepted'
+                            ? 'Accepted'
+                            : 'Declined',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: friendshipStatus == 'accepted'
+                              ? const Color(0xFF4F7D6A)
+                              : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

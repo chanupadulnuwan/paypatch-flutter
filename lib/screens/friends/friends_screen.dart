@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -781,28 +782,44 @@ class _SearchTab extends StatefulWidget {
 
 class _SearchTabState extends State<_SearchTab> {
   final TextEditingController _ctrl = TextEditingController();
+  Timer? _debounce;
   bool _isSearching = false;
-  Map<String, dynamic>? _foundUser;
-  bool _notFound = false;
+  List<Map<String, dynamic>> _results = [];
+  bool _searched = false;
   String? _errorMsg;
-  bool _isAdding = false;
+  final Set<int> _sending = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.addListener(_onChanged);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _ctrl.removeListener(_onChanged);
     _ctrl.dispose();
     super.dispose();
   }
 
+  void _onChanged() {
+    final q = _ctrl.text.trim();
+    _debounce?.cancel();
+    if (q.length < 2) {
+      if (_searched || _results.isNotEmpty || _errorMsg != null) {
+        setState(() { _results = []; _searched = false; _errorMsg = null; });
+      }
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 500), _search);
+  }
+
   Future<void> _search() async {
     final query = _ctrl.text.trim();
-    if (query.isEmpty) return;
+    if (query.length < 2) return;
 
-    setState(() {
-      _isSearching = true;
-      _foundUser = null;
-      _notFound = false;
-      _errorMsg = null;
-    });
+    setState(() { _isSearching = true; _errorMsg = null; });
 
     try {
       final token = Provider.of<AuthProvider>(context, listen: false).token;
@@ -810,82 +827,89 @@ class _SearchTabState extends State<_SearchTab> {
         setState(() => _errorMsg = 'Not authenticated.');
         return;
       }
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/friends/search'),
+
+      final uri = Uri.parse('${AppConfig.baseUrl}/users/search')
+          .replace(queryParameters: {'q': query});
+
+      final response = await http.get(
+        uri,
         headers: {
-          'Content-Type': 'application/json',
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: json.encode({'query': query}),
       ).timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
-        final user = decoded['user'] as Map<String, dynamic>?;
-        if (user != null) {
-          setState(() => _foundUser = user);
-        } else {
-          setState(() => _notFound = true);
-        }
-      } else if (response.statusCode == 404) {
-        setState(() => _notFound = true);
+        final users = (decoded['users'] as List?)
+                ?.whereType<Map<String, dynamic>>()
+                .toList() ??
+            [];
+        setState(() { _results = users; _searched = true; });
       } else {
-        setState(() => _errorMsg = 'Search failed. Please try again.');
+        setState(() { _results = []; _searched = true; });
       }
     } catch (_) {
-      setState(() => _errorMsg = 'Network error. Please try again.');
+      if (mounted) setState(() => _errorMsg = 'Network error. Please try again.');
     } finally {
       if (mounted) setState(() => _isSearching = false);
     }
   }
 
-  Future<void> _addFriend(int friendId) async {
-    setState(() => _isAdding = true);
-    // Capture everything needed before any async gap
+  Future<void> _sendRequest(Map<String, dynamic> user) async {
+    final userId = user['id'] as int?;
+    if (userId == null) return;
+
+    setState(() => _sending.add(userId));
+
     final token = Provider.of<AuthProvider>(context, listen: false).token;
-    final connectivityProv =
-        Provider.of<ConnectivityProvider>(widget.parentContext, listen: false);
     final friendsProv =
         Provider.of<FriendsProvider>(widget.parentContext, listen: false);
-    final sheetNav = Navigator.of(context);
+    final connectProv =
+        Provider.of<ConnectivityProvider>(widget.parentContext, listen: false);
     final messenger = ScaffoldMessenger.of(widget.parentContext);
+    final sheetNav = Navigator.of(context);
+
     if (token == null) {
-      setState(() => _isAdding = false);
+      setState(() => _sending.remove(userId));
       return;
     }
 
-    void showMsg(String msg, {bool isSuccess = false}) {
-      messenger.showSnackBar(SnackBar(content: Text(msg)));
-    }
-
     try {
-      final response = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/friends'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode({'friend_id': friendId}),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/friends/invite'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: json.encode({'user_id': userId}),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (!mounted) return;
-      sheetNav.pop(); // close sheet
+      sheetNav.pop();
+
+      final body = json.decode(response.body) as Map<String, dynamic>;
       if (response.statusCode == 200 || response.statusCode == 201) {
-        showMsg('Friend added successfully!', isSuccess: true);
-        // Refresh friends list
-        friendsProv.fetchFriends(isOnline: connectivityProv.isOnline);
+        messenger.showSnackBar(SnackBar(
+          content: Text('Friend request sent to ${user['name']}!'),
+        ));
+        friendsProv.fetchFriends(isOnline: connectProv.isOnline);
       } else {
-        showMsg('Failed to add friend. Please try again.');
+        messenger.showSnackBar(SnackBar(
+          content: Text(body['message'] as String? ?? 'Could not send request.'),
+        ));
       }
     } catch (_) {
-      if (mounted) {
-        sheetNav.pop();
-        showMsg('Network error. Please try again.');
-      }
+      if (mounted) sheetNav.pop();
+      messenger.showSnackBar(
+          const SnackBar(content: Text('Network error. Please try again.')));
     } finally {
-      if (mounted) setState(() => _isAdding = false);
+      if (mounted) setState(() => _sending.remove(userId));
     }
   }
 
@@ -899,125 +923,121 @@ class _SearchTabState extends State<_SearchTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _ctrl,
-                  decoration: InputDecoration(
-                    hintText: widget.hint,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide:
-                          const BorderSide(color: Color(0xFF4F7D6A), width: 2),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                  ),
-                  onSubmitted: (_) => _search(),
-                  textInputAction: TextInputAction.search,
-                ),
+          TextField(
+            controller: _ctrl,
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              prefixIcon: _isSearching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
               ),
-              const SizedBox(width: 10),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F7D6A),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 18, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: _isSearching ? null : _search,
-                child: _isSearching
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Search'),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4F7D6A), width: 2),
               ),
-            ],
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              suffixIcon: _ctrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () => _ctrl.clear(),
+                    )
+                  : null,
+            ),
+            onSubmitted: (_) => _search(),
+            textInputAction: TextInputAction.search,
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
 
-          if (_notFound)
+          if (_errorMsg != null)
+            Center(
+              child: Text(_errorMsg!,
+                  style: const TextStyle(color: Colors.red, fontSize: 14)),
+            ),
+
+          if (_searched && _results.isEmpty && !_isSearching)
             Center(
               child: Text(
-                'No user found.',
+                'No users found.',
                 style: TextStyle(
                     color: cs.onSurface.withValues(alpha: 0.6), fontSize: 15),
               ),
             ),
 
-          if (_errorMsg != null)
-            Center(
-              child: Text(
-                _errorMsg!,
-                style:
-                    const TextStyle(color: Colors.red, fontSize: 14),
-              ),
-            ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _results.length,
+              itemBuilder: (ctx, i) {
+                final user = _results[i];
+                final userId = user['id'] as int?;
+                final name = user['name']?.toString() ?? '';
+                final email = user['email']?.toString() ?? '';
+                final username = user['username']?.toString();
+                final photoUrl = user['profile_photo_url']?.toString();
+                final isSending = userId != null && _sending.contains(userId);
 
-          if (_foundUser != null) ...[
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-                side: BorderSide(
-                    color: const Color(0xFF4F7D6A).withValues(alpha: 0.4)),
-              ),
-              color: const Color(0xFF4F7D6A).withValues(alpha: 0.05),
-              child: ListTile(
-                leading: NetImage(
-                  url: _foundUser!['profile_photo_url']?.toString(),
-                  radius: 22,
-                  fallbackText: _foundUser!['name']?.toString() ?? '?',
-                  fallbackColor: const Color(0xFF4F7D6A),
-                ),
-                title: Text(
-                  _foundUser!['name']?.toString() ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Text(
-                  _foundUser!['username'] != null
-                      ? '@${_foundUser!['username']}'
-                      : (_foundUser!['email']?.toString() ?? ''),
-                  style: const TextStyle(
-                      color: Color(0xFF4F7D6A), fontSize: 12),
-                ),
-                trailing: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F7D6A),
-                    foregroundColor: Colors.white,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14),
-                    minimumSize: const Size(0, 36),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                return Card(
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(
+                        color:
+                            const Color(0xFF4F7D6A).withValues(alpha: 0.4)),
                   ),
-                  onPressed: _isAdding
-                      ? null
-                      : () {
-                          final id = _foundUser!['id'];
-                          if (id != null) _addFriend(id as int);
-                        },
-                  child: _isAdding
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Add'),
-                ),
-              ),
+                  color: const Color(0xFF4F7D6A).withValues(alpha: 0.05),
+                  child: ListTile(
+                    leading: NetImage(
+                      url: photoUrl,
+                      radius: 22,
+                      fallbackText: name,
+                      fallbackColor: const Color(0xFF4F7D6A),
+                    ),
+                    title: Text(name,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(
+                      username != null && username.isNotEmpty
+                          ? '@$username'
+                          : email,
+                      style: const TextStyle(
+                          color: Color(0xFF4F7D6A), fontSize: 12),
+                    ),
+                    trailing: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F7D6A),
+                        foregroundColor: Colors.white,
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 14),
+                        minimumSize: const Size(0, 36),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed:
+                          isSending ? null : () => _sendRequest(user),
+                      child: isSending
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text('Add'),
+                    ),
+                  ),
+                );
+              },
             ),
-          ],
+          ),
         ],
       ),
     );
